@@ -1,0 +1,109 @@
+/* navbar.css — 상단 네비게이션 바, 탭 버튼, 드롭다운 메뉴 */
+
+/* ── 상단바 레이아웃 ── */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    background-color: #1e1e1e;
+    height: 50px;
+    padding: 0;
+    border-bottom: 1px solid #333;
+    box-sizing: border-box;
+}
+
+.nav-left {
+    display: flex;
+    height: 100%;
+    gap: 0;
+}
+
+.navbar button {
+    background: transparent;
+    border: none;
+    border-right: 1px solid #333;
+    color: #888;
+    padding: 0 25px;
+    height: 100%;
+    cursor: pointer;
+    border-radius: 0;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+}
+
+.navbar button:hover {
+    background-color: #252525;
+    color: #fff;
+}
+
+.navbar button.active {
+    background-color: #4CAF50;
+    color: white;
+    border-right-color: transparent;
+}
+
+/* ── 드롭다운 메뉴 (도구 등) ── */
+.dropdown {
+    position: relative;
+    height: 100%;
+    display: flex;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #1a1a1a;
+    min-width: 180px;
+    box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    border: 1px solid #333;
+    top: 50px;
+    left: 0;
+}
+
+.dropdown-btn {
+    border-left: 1px solid #333;
+}
+
+.dropdown-content button {
+    color: #ddd;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: none !important;
+    border-bottom: 1px solid #333 !important;
+    background: transparent;
+    margin: 0;
+    height: auto;
+    border-radius: 0;
+}
+
+.dropdown-content button:last-child {
+    border-bottom: none !important;
+}
+
+.dropdown-content button:hover {
+    background-color: #2a2a2a;
+    color: #fff;
+}
+
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+
+/* ── 우측 설정 영역 ── */
+.nav-right {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding-right: 15px;
+}
+
+.icon-btn {
+    font-size: 1.2em;
+    padding: 6px 15px !important;
+}

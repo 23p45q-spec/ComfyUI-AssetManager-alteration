@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE
+.vscode/
+.idea/
+
+# ComfyUI specific (만약 템플릿이나 임시 데이터가 있다면)
+web/data/app_state.json
+web/data/prompt_library.json
+web/data/0dor1_kus1miy4_style.metadata.json
+.antigravity_context.md
+patch.md
+roadmap.md
+web/log/
+object_info_keys.json
+web/data/memos/

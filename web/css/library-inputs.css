@@ -1,0 +1,408 @@
+/* library-inputs.css — 프롬프트 라이브러리 전용 스타일 (인라인 입력, 태그, 트리, 드래그앤드롭) */
+.item-row {
+    flex-wrap: wrap;
+    /* 입력칸이 넘칠 때 줄바꿈 허용 */
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.item-inputs {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.item-input-row {
+    display: flex;
+    gap: 6px;
+}
+
+.inline-input {
+    background: #111;
+    border: 1px solid #444;
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+.inline-input:focus {
+    border-color: #4CAF50;
+    outline: none;
+}
+
+.inline-input.item-id {
+    flex: 0 0 50px;
+    font-family: monospace;
+    color: #4CAF50;
+    font-weight: bold;
+}
+
+.inline-input.item-name {
+    flex: 1;
+    font-weight: bold;
+}
+
+.inline-input.cat-name-input {
+    flex: 1;
+    font-size: 1.05em;
+    font-weight: bold;
+    background: transparent;
+    border: 1px solid transparent;
+}
+
+.inline-input.cat-name-input:focus,
+.inline-input.cat-name-input:hover {
+    background: #111;
+    border: 1px solid #444;
+}
+
+/* ── 액션 버튼 (hover 시 표시) ── */
+.action-btns {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-edit {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 1.1em;
+    cursor: pointer;
+    padding: 0 5px;
+    color: #aaa;
+    transition: 0.2s;
+}
+
+.btn-edit:hover {
+    transform: scale(1.1);
+}
+
+.list-item:hover .btn-edit {
+    display: inline-block;
+}
+
+.btn-done {
+    background: none;
+    border: none;
+    font-size: 1.1em;
+    cursor: pointer;
+    padding: 0 5px;
+}
+
+.btn-done:hover {
+    transform: scale(1.1);
+}
+
+/* ── 프롬프트 태그 (조각 선택 UI) ── */
+.prompt-tag {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #333;
+    border: 1px solid #555;
+    border-radius: 20px;
+    padding: 6px 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.prompt-tag:hover {
+    background: #444;
+    border-color: #888;
+}
+
+.prompt-tag.selected {
+    background: rgba(76, 175, 80, 0.2);
+    border-color: #4CAF50;
+}
+
+.prompt-tag .tag-name {
+    font-weight: bold;
+    font-size: 0.95em;
+    color: #eee;
+}
+
+.prompt-tag.selected .tag-name {
+    color: #4CAF50;
+}
+
+.prompt-tag .tag-edit-btn,
+.prompt-tag .tag-delete-btn {
+    background: none;
+    border: none;
+    color: #aaa;
+    cursor: pointer;
+    font-size: 1.1em;
+    padding: 0 4px;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.prompt-tag .tag-edit-btn {
+    font-size: 0.95em;
+    /* ✏️ 이모지의 기본 크기가 커서, × 와 맞추기 위해 약간 축소 */
+}
+
+.prompt-tag:hover .tag-edit-btn,
+.prompt-tag:hover .tag-delete-btn {
+    opacity: 1;
+}
+
+.prompt-tag .tag-edit-btn:hover,
+.prompt-tag .tag-delete-btn:hover {
+    transform: scale(1.2);
+    color: #fff;
+}
+
+.prompt-tag .tag-delete-btn:hover {
+    color: #ff5555;
+}
+
+/* ── 작품 > 그룹 트리 ── */
+.work-node {
+    border-bottom: 1px solid #333;
+}
+
+.work-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+    gap: 8px;
+    user-select: none;
+}
+
+.work-header:hover {
+    background: #333;
+}
+
+.work-header.active {
+    background: rgba(76, 175, 80, 0.1);
+}
+
+.work-arrow {
+    font-size: 0.7em;
+    color: #888;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+    width: 14px;
+    text-align: center;
+}
+
+.work-arrow.expanded {
+    transform: rotate(90deg);
+}
+
+.work-name {
+    flex: 1;
+    font-weight: bold;
+    font-size: 0.95em;
+    color: #ddd;
+}
+
+.work-header.active .work-name {
+    color: #4CAF50;
+}
+
+.work-children {
+    display: none;
+    padding-left: 10px;
+    border-left: 2px solid #333;
+    margin-left: 16px;
+}
+
+.work-children.expanded {
+    display: block;
+}
+
+.group-node {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-radius: 4px;
+    margin: 1px 0;
+}
+
+.group-node:hover {
+    background: #3a3a3a;
+}
+
+.group-node.active {
+    background: rgba(76, 175, 80, 0.15);
+    color: #4CAF50;
+}
+
+.group-node .group-name {
+    flex: 1;
+    font-size: 0.9em;
+}
+
+.group-node .action-btns {
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.group-node:hover .action-btns {
+    opacity: 1;
+}
+
+.work-header .action-btns {
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.work-header:hover .action-btns {
+    opacity: 1;
+}
+
+.tree-footer {
+    padding: 8px 10px;
+    border-top: 1px solid #333;
+    display: flex;
+    gap: 6px;
+}
+
+.tree-footer button {
+    flex: 1;
+    padding: 5px;
+    font-size: 0.8em;
+}
+
+/* ── 드래그앤드롭 (순서 변경) ── */
+.work-header[draggable="true"],
+.group-node[draggable="true"] {
+    cursor: grab;
+}
+
+.work-header[draggable="true"]:active,
+.group-node[draggable="true"]:active {
+    cursor: grabbing;
+}
+
+.work-node.dragging,
+.group-node.dragging {
+    opacity: 0.4;
+}
+
+.work-node.drag-over-top {
+    border-top: 2px solid #4CAF50;
+}
+
+.work-node.drag-over-bottom {
+    border-bottom: 2px solid #4CAF50;
+}
+
+.group-node.drag-over-top {
+    border-top: 2px solid #4CAF50;
+    margin-top: -1px;
+}
+
+.group-node.drag-over-bottom {
+    border-bottom: 2px solid #4CAF50;
+    margin-bottom: -1px;
+}
+
+.group-node.drag-over-center {
+    background: rgba(76, 175, 80, 0.3);
+    border: 1px dashed #4CAF50;
+}
+
+/* ── 프롬프트 조각(Tag) 드래그앤드롭 ── */
+.prompt-tag[draggable="true"] {
+    cursor: grab;
+}
+
+.prompt-tag[draggable="true"]:active {
+    cursor: grabbing;
+}
+
+.dragging-item {
+    opacity: 0.5;
+    transform: scale(0.95);
+    border: 1px dashed #4CAF50;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+}
+
+.prompt-tag.drag-over-left {
+    box-shadow: -4px 0 0 0 #4CAF50 !important;
+}
+
+.prompt-tag.drag-over-right {
+    box-shadow: 4px 0 0 0 #4CAF50 !important;
+}
+
+/* ── 라이브러리 컨텍스트 메뉴 (복사/잘라내기/붙여넣기) ── */
+.lib-context-menu {
+    position: fixed;
+    z-index: 1000;
+    background: #2a2a2a;
+    border: 1px solid #555;
+    border-radius: 6px;
+    padding: 4px 0;
+    min-width: 160px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    display: none;
+}
+
+.lib-context-menu .ctx-item {
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 0.9em;
+    color: #ddd;
+    transition: background 0.1s;
+}
+
+.lib-context-menu .ctx-item:hover {
+    background: #3a3a3a;
+}
+
+.lib-context-menu .ctx-divider {
+    height: 1px;
+    background: #444;
+    margin: 4px 0;
+}
+
+/* ── 프롬프트 순서 변경 버튼 (▲▼) ── */
+.prompt-tag .tag-move-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+    font-size: 0.7em;
+    line-height: 1;
+}
+
+.prompt-tag:hover .tag-move-btns {
+    opacity: 1;
+}
+
+.prompt-tag .tag-move-btn {
+    background: none;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    padding: 0 2px;
+    font-size: 1em;
+    line-height: 1;
+}
+
+.prompt-tag .tag-move-btn:hover {
+    color: #4CAF50;
+}

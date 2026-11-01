@@ -1,0 +1,2931 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ComfyUI Asset Manager</title>
+    <link rel="stylesheet" href="/assetmanager/static/css/base.css">
+    <link rel="stylesheet" href="/assetmanager/static/css/navbar.css">
+    <link rel="stylesheet" href="/assetmanager/static/css/generate.css">
+    <link rel="stylesheet" href="/assetmanager/static/css/style.css">
+    <link rel="stylesheet" href="/assetmanager/static/css/gallery.css">
+    <link rel="stylesheet" href="/assetmanager/static/css/library-inputs.css">
+</head>
+
+<body>
+
+    <div class="navbar">
+        <div class="nav-left">
+            <button class="tab-btn" onclick="openTab('tab-gallery', this)">갤러리</button>
+            <button class="tab-btn" onclick="openTab('tab-generate', this)">이미지 생성</button>
+            <div class="dropdown">
+                <button class="dropdown-btn">🛠️ 도구 ▼</button>
+                <div class="dropdown-content">
+                    <button class="tab-btn" onclick="openTab('tab-tools-metadata', this)">🔍 메타데이터 뷰어</button>
+                    <button class="tab-btn" onclick="openTab('tab-tools-censor', this)">🔍 단독 검열기</button>
+                    <button class="tab-btn" onclick="openTab('tab-tools-resizer', this)">✂️ 퀵 리사이저</button>
+                    <button class="tab-btn" onclick="openTab('tab-tools-nai-director', this)">🎬 NAI Director 도구</button>
+                    <button class="tab-btn" onclick="openTab('tab-tools-numcheck', this); if (typeof renderNumCheckTool === 'function') renderNumCheckTool();">🔢 조각 번호표/대조</button>
+                    <button class="tab-btn" onclick="openTab('tab-tools-psearch', this); if (typeof renderPSearchTool === 'function') renderPSearchTool();">🔎 프롬프트 특수 검색</button>
+                    <button class="tab-btn" onclick="openTab('tab-tools-diag', this); if (typeof renderAmDiagTool === 'function') renderAmDiagTool();">🩺 에셋매니저 진단</button>
+                    <button class="tab-btn" onclick="openTab('tab-tools-wfrun', this); if (typeof renderWfRunTool === 'function') renderWfRunTool();">🧩 워크플로우 이미지 실행</button>
+                </div>
+            </div>
+        </div>
+        <div class="nav-right">
+            <button class="icon-btn tab-btn" onclick="openTab('tab-settings', this)" title="설정">⚙️</button>
+        </div>
+    </div>
+
+    <div id="context-menu">
+        <div onclick="openFolder()">📂 해당 폴더 열기</div>
+        <div onclick="showImageProperties()">ℹ️ 이미지 속성 보기</div>
+        <div onclick="sendToGenerateFromGallery()"
+            style="color: #4CAF50; border-top: 1px solid #444; padding-top: 8px; margin-top: 5px;">🪄 이 설정으로 생성</div>
+        <div onclick="sendToImg2ImgFromGallery()"
+            style="color: #2196F3; padding-top: 6px; margin-top: 2px;">🖼️ Img2Img로 보내기</div>
+        <div onclick="retouchContextImage()"
+            style="color: #9C27B0; padding-top: 6px; margin-top: 2px;" title="단독 검열기 탭의 리터치 캔버스를 열어서, 이 이미지 위에 직접 모자이크/흰색을 덧칠할 수 있습니다">🖌️ 모자이크 리터치</div>
+        <div onclick="saveImageSettingsAsFragment()"
+            style="color: #FF9800;" title="이 이미지에 박힌 프롬프트/로라를 읽어서 '🖼 갤러리에서 저장' 그룹에 새 조각으로 만듭니다">💾 이 설정을 조각으로 저장</div>
+        <div onclick="deleteContextImage()"
+            style="color: #ff5555; border-top: 1px solid #444; padding-top: 8px; margin-top: 5px;">🗑️ 이미지 삭제</div>
+    </div>
+
+    <div id="lightbox" onclick="closeLightbox()">
+        <span class="close-btn">&times;</span>
+        <img id="lightbox-img" src="" onclick="event.stopPropagation()">
+    </div>
+
+    <div id="metadata-modal" class="modal-overlay" onclick="closeMetadataModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 style="margin: 0; color: #4CAF50;">📄 이미지 생성 정보</h3>
+                <span class="close-btn" style="position: static; font-size: 1.5em; color: #ff5555;"
+                    onclick="closeMetadataModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="metadata-body"></div>
+        </div>
+    </div>
+
+    <!-- 모델 정보 팝업 모달 -->
+    <div id="model-info-modal" class="modal-overlay" style="display:none;" onclick="closeModelInfoModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="model-info-title" style="margin: 0; color: #4CAF50;">모델 정보</h3>
+                <span class="close-btn" style="position: static; font-size: 1.5em; color: #ff5555;"
+                    onclick="closeModelInfoModal()">&times;</span>
+            </div>
+            <div id="model-info-body" class="modal-body">
+                <!-- 내용이 동적으로 삽입됨 -->
+                로딩 중...
+            </div>
+        </div>
+    </div>
+
+    <!-- 프롬프트 편집 팝업 모달 (Phase 8) -->
+    <div id="prompt-edit-modal" class="modal-overlay" style="display:none;" onclick="closePromptEditModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 style="margin: 0; color: #4CAF50;">✏️ 프롬프트 조각 편집</h3>
+                <span class="close-btn" style="position: static; font-size: 1.5em; color: #ff5555;"
+                    onclick="closePromptEditModal()">&times;</span>
+            </div>
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 15px;">
+                <input type="hidden" id="edit-prompt-original-id">
+                <div class="form-group" style="margin: 0;">
+                    <label>표시 이름 (Name)</label>
+                    <input type="text" id="edit-prompt-name" placeholder="예: 엠버린_평상복_01">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label>고유 식별자 (ID)</label>
+                    <input type="text" id="edit-prompt-id" placeholder="예: outfit_amb_01">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label>프롬프트 내용 (Value)
+                        <button type="button" class="btn-secondary" style="margin-left:8px; padding:1px 9px; font-size:0.82em;"
+                            onclick="if (typeof convertEditPromptNaiToComfy === 'function') convertEditPromptNaiToComfy();"
+                            title="NAI에서 복사한 프롬프트의 {중괄호}/[대괄호] 강조 문법을 ComfyUI 숫자 가중치 (단어:1.10) 문법으로 바꿔줍니다">NAI→콤피 변환</button>
+                        <button type="button" class="btn-secondary" style="margin-left:4px; padding:1px 9px; font-size:0.82em;"
+                            onclick="if (typeof openItemGeneratedImagesModal === 'function') openItemGeneratedImagesModal(activeCategoryId, document.getElementById('edit-prompt-original-id').value);"
+                            title="이 조각으로 생성한 이미지들을 모아 보여줍니다 (이 기능을 켜기 전에 만든 이미지는 기록이 없습니다)">🖼 생성 내역</button>
+                    </label>
+                    <textarea id="edit-prompt-value" rows="4" placeholder="1girl, casual wear..."></textarea>
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label>부모 제약 조건 (Requires IDs - 쉼표 구분)</label>
+                    <input type="text" id="edit-prompt-requires" placeholder="예: char_amberin, pose_standing">
+                    <p style="font-size: 0.8em; color: #aaa; margin-top: 5px;">* 비워두면 조건 없이 항상 표시됩니다.</p>
+                </div>
+                <button class="btn-primary" onclick="savePromptEditModal()" style="padding: 12px; margin-top: 10px;">저장
+                    및 적용</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="content full-screen" id="main-content">
+        <div id="tab-generate" class="tab-panel">
+
+            <div id="gen-left" class="gen-left">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 15px;">
+                    <h2 style="margin: 0;">이미지 생성</h2>
+
+                    <div class="mode-switch">
+                        <input type="radio" id="mode-single" name="gen-mode" value="single" checked
+                            onchange="toggleGenMode()">
+                        <label for="mode-single">단일 생성</label>
+                        <input type="radio" id="mode-batch" name="gen-mode" value="batch" onchange="toggleGenMode()">
+                        <label for="mode-batch">배치(대량) 큐</label>
+                    </div>
+                </div>
+<div class="form-section">
+    <h3>1. 공통 환경 설정 (Global Settings)</h3>
+<div class="form-group">
+    <label>프리셋</label>
+<div class="form-group" style="display:flex; align-items:center; gap: 8px;">
+    <label style="margin:0; width: 100px;">프리셋:</label>
+    <select id="gen-preset" style="flex:1;" onchange="applyPreset()">
+        <option value="">직접 선택</option>
+        <option value="wai_sdxl">WAI Illustrious SDXL</option>
+        <option value="nova_anime_am">Nova Anime AM (Anima)</option>
+    </select>
+<button type="button" onclick="addNewPreset()" data-help="presetAdd" style="white-space:nowrap;">+ 추가</button>
+<button type="button" onclick="renamePreset()" data-help="presetRename" style="white-space:nowrap;">✎ 이름수정</button>
+<button type="button" onclick="removePreset()" data-help="presetRemove" style="white-space:nowrap;">- 제거</button>
+<button type="button" onclick="openMergePresetsModal()" data-help="presetMerge" title="두 프리셋을 하나로 합치기" style="white-space:nowrap;">🔀 병합</button>
+<button type="button" onclick="setDefaultPreset()" data-help="presetSetDefault" title="현재 선택된 프리셋을 새로고침 시 기본으로 설정" style="white-space:nowrap;">⭐ 기본</button>
+<button type="button" onclick="exportPresetsToFile()" data-help="presetExport" title="모든 프리셋/설정을 파일로 백업" style="white-space:nowrap;">💾 백업</button>
+<button type="button" onclick="document.getElementById('preset-import-input').click()" data-help="presetImport" title="백업 파일에서 프리셋/설정 복원" style="white-space:nowrap;">📂 복원</button>
+<input type="file" id="preset-import-input" accept="application/json" style="display:none;"
+    onchange="importPresetsFromFile(this.files[0])">
+<button type="button" id="cleanup-btn" onclick="startCleanupCountdown()" data-help="presetCleanup" title="삭제된 프리셋의 남은 캐시만 정리 (현재 프리셋 값은 건드리지 않음)" style="white-space:nowrap;">🧹 청소</button>
+<script>
+(function(){
+    let _cleanupTimer = null;
+    let _cleanupCount = 0;
+
+    window.startCleanupCountdown = function() {
+        const btn = document.getElementById('cleanup-btn');
+        if (_cleanupTimer) return; // 이미 카운트다운 중
+
+        // 경고 확인
+        const ok = confirm(
+            '⚠️ 청소 주의\n\n' +
+            '이 기능은 삭제된 프리셋의 캐시를 정리합니다.\n' +
+            '현재 활성 프리셋 설정값도 함께 초기화될 수 있습니다.\n\n' +
+            '계속하려면 확인을 누르세요.\n(10초 후 버튼이 활성화됩니다)'
+        );
+        if (!ok) return;
+
+        _cleanupCount = 10;
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.textContent = `🧹 청소 (${_cleanupCount}초)`;
+
+        _cleanupTimer = setInterval(() => {
+            _cleanupCount--;
+            if (_cleanupCount <= 0) {
+                clearInterval(_cleanupTimer);
+                _cleanupTimer = null;
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.textContent = '🧹 청소 (클릭하여 실행)';
+                btn.onclick = function() {
+                    cleanupOrphanedPresetCache();
+                    btn.textContent = '🧹 청소';
+                    btn.onclick = startCleanupCountdown;
+                };
+            } else {
+                btn.textContent = `🧹 청소 (${_cleanupCount}초)`;
+            }
+        }, 1000);
+    };
+})();
+</script>
+</div></div>
+
+<div class="form-group" style="display:flex; align-items:center; gap: 8px;">
+    <label style="margin:0; width: 100px;">아키텍처:</label>
+    <select id="gen-architecture" style="flex:1;" onchange="toggleArchitectureUI()">
+        <option value="sdxl">SDXL</option>
+        <option value="anima">Anima</option>
+        <option value="sd3">SD3 / SD3.5</option>
+        <option value="nanobanana">🍌 나노바나나 (Nano Banana / Gemini)</option>
+        <option value="nai">🎨 NovelAI (NAI)</option>
+        <option value="gpt">🤖 GPT (OpenAI)</option>
+    </select>
+</div>
+
+<!-- 🆕 NovelAI(NAI) 전용 행 — 체크포인트/로라 대신 API 토큰과 NAI 전용 설정을 전부 여기서 따로 관리함
+     (아래 공통 "고급 설정"의 해상도/샘플러/스텝/CFG/시드는 ComfyUI 전용이라 NAI가 지원하는 값과 안 맞는 게
+     많아서 안 씀 — 부정 프롬프트만 공통 칸을 그대로 재사용) -->
+<div class="form-group" id="nai-row" style="display:none;">
+    <label>NovelAI API 토큰 (Persistent API Token, pst-로 시작)</label>
+    <input type="password" id="nai-api-token" placeholder="pst-..." data-help="nai-api-token"
+        onchange="localStorage.setItem('naiApiToken', this.value);">
+
+    <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:10px;">
+        <label style="margin:0; font-weight:normal; width:90px;">모델:</label>
+        <select id="nai-model" data-help="nai-model" style="width:auto; flex:1; min-width:180px;"
+            onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave(); toggleNaiModelFeatureRows();">
+            <option value="nai-diffusion-5-full">NAI Diffusion V5 Full (미검증)</option>
+            <option value="nai-diffusion-5-curated">NAI Diffusion V5 Curated (미검증)</option>
+            <option value="nai-diffusion-4-5-full">NAI Diffusion V4.5 Full</option>
+            <option value="nai-diffusion-4-5-curated">NAI Diffusion V4.5 Curated (미검증)</option>
+            <option value="nai-diffusion-4-full">NAI Diffusion V4 Full</option>
+            <option value="nai-diffusion-4-curated">NAI Diffusion V4 Curated (미검증)</option>
+            <option value="nai-diffusion-3">NAI Diffusion V3 (미검증)</option>
+        </select>
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:10px;">
+        <label style="margin:0; font-weight:normal; width:90px;">해상도:</label>
+        <select id="nai-resolution" data-help="nai-resolution" style="width:auto; flex:1; min-width:180px;" onchange="toggleNaiCustomResolution()">
+            <optgroup label="Normal">
+                <option value="832x1216">Portrait (832×1216)</option>
+                <option value="1216x832">Landscape (1216×832)</option>
+                <option value="1024x1024">Square (1024×1024)</option>
+            </optgroup>
+            <optgroup label="Large">
+                <option value="1024x1536">Large Portrait (1024×1536)</option>
+                <option value="1536x1024">Large Landscape (1536×1024)</option>
+                <option value="1472x1472">Large Square (1472×1472)</option>
+            </optgroup>
+            <optgroup label="Wallpaper">
+                <option value="1088x1920">Wallpaper Portrait (1088×1920)</option>
+                <option value="1920x1088">Wallpaper Landscape (1920×1088)</option>
+            </optgroup>
+            <optgroup label="Small (저용량)">
+                <option value="512x768">Small Portrait (512×768)</option>
+                <option value="768x512">Small Landscape (768×512)</option>
+                <option value="640x640">Small Square (640×640)</option>
+            </optgroup>
+            <option value="custom">직접 입력...</option>
+        </select>
+    </div>
+    <div id="nai-resolution-custom-row" style="display:none; align-items:center; gap:10px; margin-top:6px;">
+        <label style="margin:0; font-weight:normal; width:90px;"></label>
+        <input type="number" id="nai-custom-width" data-help="nai-resolution" placeholder="가로" min="64" step="64" style="width:100px;">
+        <span>×</span>
+        <input type="number" id="nai-custom-height" data-help="nai-resolution" placeholder="세로" min="64" step="64" style="width:100px;">
+        <span style="font-size:0.78em; color:#888;">(64의 배수 권장, 무료 등급은 최대 1024×1024=1,048,576px 이내)</span>
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:10px;">
+        <label style="margin:0; font-weight:normal; width:90px;">샘플러:</label>
+        <select id="nai-sampler" data-help="nai-sampler" style="width:auto; flex:1; min-width:160px;">
+            <option value="k_euler_ancestral">Euler Ancestral</option>
+            <option value="k_euler">Euler</option>
+            <option value="k_dpmpp_2s_ancestral">DPM++ 2S Ancestral</option>
+            <option value="k_dpmpp_2m">DPM++ 2M</option>
+            <option value="k_dpmpp_2m_sde">DPM++ 2M SDE</option>
+            <option value="k_dpmpp_sde">DPM++ SDE</option>
+            <option value="ddim_v3">DDIM V3</option>
+        </select>
+        <label style="margin:0; font-weight:normal;">스케줄:</label>
+        <select id="nai-noise-schedule" data-help="nai-noise-schedule" style="width:auto;">
+            <option value="karras">Karras</option>
+            <option value="native">Native</option>
+            <option value="exponential">Exponential</option>
+            <option value="polyexponential">Polyexponential</option>
+        </select>
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; align-items:center; gap:16px; margin-top:10px;">
+        <label style="margin:0; font-weight:normal; display:flex; align-items:center; gap:6px;">스텝:
+            <input type="number" id="nai-steps" data-help="nai-steps" value="28" min="1" max="50" style="width:70px;">
+        </label>
+        <label style="margin:0; font-weight:normal; display:flex; align-items:center; gap:6px;">CFG:
+            <input type="number" id="nai-cfg" data-help="nai-cfg" value="5" min="0" max="10" step="0.5" style="width:70px;">
+        </label>
+        <label style="margin:0; font-weight:normal; display:flex; align-items:center; gap:6px;" data-help="nai-cfg-rescale">CFG Rescale:
+            <input type="number" id="nai-cfg-rescale" data-help="nai-cfg-rescale" value="0" min="0" max="1" step="0.05" style="width:70px;">
+        </label>
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:10px;">
+        <label style="margin:0; font-weight:normal; width:90px;">시드:</label>
+        <input type="checkbox" id="nai-seed-random" checked
+            onchange="document.getElementById('nai-seed').disabled=this.checked;">
+        <label for="nai-seed-random" style="margin:0; font-weight:normal; cursor:pointer;">랜덤</label>
+        <input type="number" id="nai-seed" data-help="nai-seed" disabled placeholder="랜덤" style="flex:1; margin-left:4px;">
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:16px; margin-top:10px;">
+        <label style="font-weight:normal; display:flex; align-items:center; gap:6px; cursor:pointer;" data-help="nai-sm">
+            <input type="checkbox" id="nai-sm" data-help="nai-sm" onchange="if(!this.checked) document.getElementById('nai-sm-dyn').checked=false;"> SMEA
+        </label>
+        <label style="font-weight:normal; display:flex; align-items:center; gap:6px; cursor:pointer;" data-help="nai-sm-dyn">
+            <input type="checkbox" id="nai-sm-dyn" data-help="nai-sm-dyn" onchange="if(this.checked) document.getElementById('nai-sm').checked=true;"> SMEA DYN
+        </label>
+        <label style="margin:0; font-weight:normal; display:flex; align-items:center; gap:6px;" data-help="nai-uc-preset">UC 프리셋:
+            <input type="number" id="nai-uc-preset" data-help="nai-uc-preset" min="0" max="9" value="0" style="width:60px;">
+        </label>
+    </div>
+
+    <!-- 🆕 NAI V4/V4.5 캐릭터별 프롬프트+위치 지정 (Multi-Character Prompting) -->
+    <div style="margin-top:14px; border-top:1px solid #444; padding-top:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label style="margin:0;" data-help="nai-characters-section">🧑‍🤝‍🧑 캐릭터별 프롬프트 (선택, V4/V4.5 전용)</label>
+            <button type="button" class="btn-secondary" data-help="nai-add-character" onclick="addNaiCharacterRow()" style="font-size:0.85em; padding:4px 10px;">+ 캐릭터 추가</button>
+        </div>
+        <p style="font-size:0.75em; color:#888; margin:4px 0 8px;">
+            공통 프롬프트(위 프롬프트 라이브러리/공통 긍정)는 "전체 배경/구도" 설명용으로 남겨두고,
+            캐릭터마다 다른 특징(머리색, 옷 등)을 주고 싶을 때 여기에 캐릭터별로 나눠 적으세요.
+            화면 위 미리보기 사각형을 드래그하면 그 캐릭터가 나올 대략적인 위치를 지정할 수 있습니다(안 건드리면 NAI가 자동 배치).
+        </p>
+        <div id="nai-char-position-preview" style="position:relative; width:100%; max-width:260px; aspect-ratio:1; background:#111; border:1px solid #444; border-radius:6px; margin-bottom:10px;"></div>
+        <div id="nai-characters-list"></div>
+    </div>
+
+    <!-- 🆕 NAI Img2Img — 원본 이미지를 밑그림 삼아서 다시 그리기. 안 넣으면 평소처럼 완전 새로 생성(txt2img). -->
+    <div style="margin-top:14px; border-top:1px solid #444; padding-top:10px;">
+        <label data-help="nai-img2img-section">🖼 Img2Img 원본 이미지 (선택)</label>
+        <div id="nai-img2img-dropzone" data-help="nai-img2img-dropzone"
+            style="border:2px dashed #555; border-radius:8px; padding:14px; text-align:center; cursor:pointer; margin-top:6px; position:relative;"
+            onclick="document.getElementById('nai-img2img-file').click()"
+            ondragover="event.preventDefault(); this.style.borderColor='#4CAF50';"
+            ondragleave="this.style.borderColor='#555';"
+            ondrop="event.preventDefault(); this.style.borderColor='#555'; handleNaiImg2ImgFile(event.dataTransfer.files[0]);">
+            <input type="file" id="nai-img2img-file" accept="image/png,image/jpeg,image/webp" style="display:none;"
+                onchange="handleNaiImg2ImgFile(this.files[0])">
+            <span id="nai-img2img-placeholder" style="font-size:0.85em; color:#888;">클릭하거나 이미지를 끌어다 놓으세요 (안 넣으면 평소처럼 새로 생성)</span>
+            <img id="nai-img2img-preview" style="display:none; max-width:100%; max-height:160px; border-radius:6px; margin-top:6px;">
+        </div>
+        <div id="nai-img2img-options" style="display:none; margin-top:8px;">
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:16px;">
+                <label style="margin:0; font-weight:normal; display:flex; align-items:center; gap:6px;" data-help="nai-img2img-strength">강도(Strength):
+                    <input type="number" id="nai-img2img-strength" data-help="nai-img2img-strength" value="0.7" min="0.01" max="0.99" step="0.05" style="width:70px;">
+                </label>
+                <label style="margin:0; font-weight:normal; display:flex; align-items:center; gap:6px;" data-help="nai-img2img-noise">노이즈:
+                    <input type="number" id="nai-img2img-noise" data-help="nai-img2img-noise" value="0" min="0" max="1" step="0.05" style="width:70px;">
+                </label>
+                <button type="button" class="btn-secondary" onclick="clearNaiImg2Img()" style="font-size:0.85em; padding:4px 10px;">✕ 원본 이미지 제거</button>
+            </div>
+            <p style="font-size:0.75em; color:#888; margin:4px 0 0;">강도가 낮을수록 원본과 비슷하게, 높을수록 원본에서 많이 벗어납니다. 해상도는 위에서 고른 값에 맞춰 원본이 자동으로 맞춰집니다(비율이 다르면 크롭될 수 있음).</p>
+
+            <!-- 🆕 인페인팅(부분만 다시 그리기) — 마스크를 안 만들면 이미지 전체를 다시 그리는 일반 Img2Img로 동작 -->
+            <div style="margin-top:10px; padding-top:10px; border-top:1px dashed #444;">
+                <label data-help="nai-inpaint-section" style="display:block; margin-bottom:6px;">🩹 인페인팅 마스크 (선택)</label>
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <button type="button" class="btn-secondary" data-help="nai-inpaint-paint-btn" onclick="openNaiMaskPainter()">✏️ 화면에서 칠해서 마스크 만들기</button>
+                    <button type="button" class="btn-secondary" onclick="clearNaiInpaintMask()" style="font-size:0.85em; padding:4px 10px;">✕ 마스크 제거</button>
+                    <span id="nai-inpaint-status" style="font-size:0.8em; color:#4CAF50;"></span>
+                </div>
+                <img id="nai-inpaint-mask-preview" style="display:none; max-width:160px; max-height:160px; border-radius:6px; margin-top:6px; border:1px solid #666;">
+                <label style="margin:8px 0 0; font-weight:normal; display:flex; align-items:center; gap:6px;" data-help="nai-inpaint-mask-blur">
+                    마스크 경계 부드럽게(블러):
+                    <input type="range" id="nai-inpaint-mask-blur" min="0" max="20" step="1" value="8"
+                        oninput="document.getElementById('nai-inpaint-mask-blur-val').textContent=this.value">
+                    <span id="nai-inpaint-mask-blur-val" style="width:20px;">8</span>px
+                </label>
+                <p style="font-size:0.75em; color:#888; margin:6px 0 0;">
+                    기존 "🎨 편집" 그림판이 그대로 뜹니다. 다시 그리고 싶은 부분을 아무 색으로나 칠하고 저장하면,
+                    칠하기 전/후를 비교해서 자동으로 흑백 마스크(흰색=다시 그려질 영역)를 만듭니다.
+                    마스크를 안 만들면 이미지 전체가 위 강도값만큼 다시 그려집니다(일반 Img2Img).
+                    위 블러 값을 올리면 다시 그려진 부분과 원본 사이 경계선이 덜 티나게(자연스럽게) 섞입니다 — 0이면 블러 없이 딱 칠한 그대로.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🆕 NAI Vibe Transfer — 스타일/분위기 참조 이미지. Img2Img와 별개로 독립 동작(같이 써도 됨). -->
+    <div style="margin-top:14px; border-top:1px solid #444; padding-top:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label style="margin:0;" data-help="nai-vibe-section">🌈 Vibe Transfer (스타일 참조 이미지, 선택)</label>
+            <button type="button" class="btn-secondary" data-help="nai-vibe-add" onclick="document.getElementById('nai-vibe-file-input').click()" style="font-size:0.85em; padding:4px 10px;">+ 이미지 추가</button>
+            <input type="file" id="nai-vibe-file-input" accept="image/png,image/jpeg,image/webp" multiple style="display:none;"
+                onchange="Array.from(this.files).forEach(addNaiVibeImage); this.value='';">
+        </div>
+        <p style="font-size:0.75em; color:#888; margin:4px 0 8px;">
+            체크포인트/로라 없이 "이 이미지 그림체·분위기랑 비슷하게" 참고시키는 기능. 여러 장 추가 가능(각각 추출강도/적용강도 따로 조절).
+        </p>
+        <div id="nai-vibe-list"></div>
+    </div>
+
+    <!-- 🆕 NAI Precise Reference — Vibe Transfer 상위호환. V4.5 모델에서만 동작(V5는 아직 NAI 쪽에서 미지원). -->
+    <div id="nai-precise-ref-section" style="margin-top:14px; border-top:1px solid #444; padding-top:10px; display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label style="margin:0;" data-help="nai-precise-ref-section">🎯 Precise Reference (정밀 참조)</label>
+            <button type="button" class="btn-secondary" data-help="nai-precise-ref-add" onclick="document.getElementById('nai-precise-ref-file-input').click()" style="font-size:0.85em; padding:4px 10px;">+ 이미지 추가</button>
+            <input type="file" id="nai-precise-ref-file-input" accept="image/png,image/jpeg,image/webp" multiple style="display:none;"
+                onchange="Array.from(this.files).forEach(addNaiPreciseRefImage); this.value='';">
+        </div>
+        <p style="font-size:0.75em; color:#888; margin:4px 0 8px;">
+            Vibe Transfer보다 더 정밀하게 캐릭터/스타일을 참고시키는 기능(V4.5 전용, 최대 16장). 참조마다 종류(캐릭터/스타일/둘 다)와 강도(Strength)·충실도(Fidelity)를 따로 조절.
+        </p>
+        <div id="nai-precise-ref-list"></div>
+    </div>
+
+    <!-- 🆕 Text Rendering — 이미지 안에 실제 글자를 넣는 NAI 전용 프롬프트 규칙. 직접 입력해도 되지만, 여기 적으면
+         자동으로 프롬프트 맨 끝에 "Text: ..." 형식으로 붙여줌(V4 이상 모델만 지원). -->
+    <div id="nai-text-render-section" style="margin-top:14px; border-top:1px solid #444; padding-top:10px; display:none;">
+        <label data-help="nai-text-render">🔤 이미지 안에 렌더링할 텍스트 (선택, V4+)</label>
+        <input type="text" id="nai-text-render-input" placeholder="예: OPEN (간판에 적힐 글자)">
+        <p style="font-size:0.75em; color:#888; margin:4px 0 0;">
+            여기 적으면 전송 직전 프롬프트 맨 끝에 자동으로 "Text: 입력한글자" 형식으로 붙여서 보냄(NAI 공식 문법).
+            모델별 최대 글자수: V4/V4.5 118자, V5 Curated 374자, V5 Full 750자. 짧은 글자가 잘 안 나오면 아래 "품질 태그 자동 추가"를 꺼보세요.
+        </p>
+    </div>
+
+    <div id="nai-transparent-bg-row" style="margin-top:10px; display:none;">
+        <label style="font-weight:normal; display:flex; align-items:center; gap:6px; cursor:pointer;" data-help="nai-transparent-bg">
+            <input type="checkbox" id="nai-transparent-bg" data-help="nai-transparent-bg"> 투명 배경 (Transparent BG, V5 전용)
+        </label>
+    </div>
+
+    <p style="font-size:0.72em; color:#666; margin:10px 0 0; line-height:1.5;" data-help="nai-prompt-randomizer-note">
+        💡 <b>프롬프트 랜덤화(Prompt Randomizer)</b>: 프롬프트 안에 <code>{고양이|강아지|토끼}</code> 처럼 중괄호+｜로 적으면
+        매 생성마다 그중 하나를 NAI가 알아서 무작위로 골라 씁니다. 이 프로그램이 따로 처리하는 게 아니라 NAI 서버가
+        직접 해석하는 문법이라, 프롬프트 어디에 적든 그대로 전달되어 자동으로 동작합니다.<br>
+        💡 <b>프롬프트 조각(Prompt Chunks)</b>: NAI 웹사이트 자체에 있는 "@로 저장된 문구 불러오기" 기능인데,
+        이 프로그램은 이미 "프롬프트 라이브러리"라는 동등한(오히려 더 강력한) 조각 관리 기능이 있어서 별도로 안 만들었습니다.
+    </p>
+
+    <div style="display:flex; flex-wrap:wrap; gap:16px; margin-top:8px;">
+        <label style="font-weight:normal; display:flex; align-items:center; gap:6px; cursor:pointer;" data-help="nai-quality-toggle">
+            <input type="checkbox" id="nai-quality-toggle" data-help="nai-quality-toggle" checked> 품질 태그 자동 추가 (qualityToggle)
+        </label>
+        <label style="font-weight:normal; display:flex; align-items:center; gap:6px; cursor:pointer;" data-help="nai-convert-weights">
+            <input type="checkbox" id="nai-convert-weights" data-help="nai-convert-weights" checked> 가중치 문법 변환 <code>(단어:1.2)</code> → <code>1.2::단어::</code>
+        </label>
+    </div>
+    <p style="font-size:0.78em; color:#e0a030; margin:6px 0 0;" data-help="nai-note">
+        ⚠️ NAI는 로컬 ComfyUI 모델이 아니라 NovelAI 서버 API를 호출하며, 생성할 때마다 Anlas(구독 포인트)가 소모됩니다.
+        체크포인트/로라/VAE/CLIP, 컨트롤넷/디테일러/모자이크 후처리는 적용되지 않고 무시됩니다(단, 체크포인트가 필요 없는 "일반 업스케일"만은 위 "⬆️ 생성 직후 자동 업스케일" 체크박스로 적용 가능). Img2Img와 인페인팅(마스크로 부분만 다시 그리기)은 위 "Img2Img 원본 이미지"/"인페인팅 마스크" 칸으로 지원되고(NAI 자체 img2img/infill), 캐릭터별 프롬프트는 V4/V4.5 모델에서만 동작합니다(V3 선택 시 무시됨).
+        해상도/샘플러/스텝/CFG/시드는 위 NAI 전용 설정을 쓰고, 아래 공통 "고급 설정"은 무시됩니다(공통 부정 프롬프트만 그대로 적용).
+        해상도·샘플러·스케줄러·스텝·CFG·시드와 공통/조각 부정 프롬프트는 그대로 적용됩니다.
+        토큰은 이 브라우저에만 저장되며 생성 요청 시에만 서버로 함께 전달됩니다.
+    </p>
+</div>
+
+<!-- 🆕 나노바나나(Google Gemini 이미지 생성) 전용 행 — 체크포인트/로라 개념이 없고 API 키만 필요함 -->
+<div class="form-group" id="nanobanana-row" style="display:none;">
+    <label>나노바나나 API 키 (Google AI Studio에서 발급)</label>
+    <input type="password" id="nanobanana-api-key" placeholder="AIza..." data-help="nanobanana-api-key"
+        onchange="localStorage.setItem('nanoBananaApiKey', this.value);">
+    <p style="font-size:0.78em; color:#e0a030; margin:6px 0 0;" data-help="nanobanana-note">
+        ⚠️ 나노바나나는 로컬 ComfyUI 모델이 아니라 Google 서버 API를 호출합니다.
+        체크포인트/로라/VAE/CLIP, 그리고 아래 "고급 설정"(해상도/샘플러/스텝/CFG/시드)과
+        참조이미지/컨트롤넷/Img2Img/인페인팅/디테일러/모자이크 후처리는 전부 적용되지 않고 무시됩니다(추후 지원 예정). 🆕 단, 체크포인트가 필요 없는 "일반 업스케일"만은 위 "⬆️ 생성 직후 자동 업스케일" 체크박스로 적용됩니다.
+        API 키는 이 브라우저에만 저장되며 서버로는 이미지 생성 요청 시에만 함께 전달됩니다.
+    </p>
+</div>
+
+<!-- 🆕 GPT(OpenAI 이미지 생성) 전용 행 — 나노바나나와 동일한 구조(체크포인트/로라 없음, API 키만 필요) -->
+<div class="form-group" id="gpt-row" style="display:none;">
+    <label>GPT API 키 (OpenAI Platform에서 발급)</label>
+    <input type="password" id="gpt-api-key" placeholder="sk-..." data-help="gpt-api-key"
+        onchange="localStorage.setItem('gptApiKey', this.value);">
+    <p style="font-size:0.78em; color:#e0a030; margin:6px 0 0;" data-help="gpt-note">
+        ⚠️ GPT(OpenAI)도 로컬 ComfyUI 모델이 아니라 OpenAI 서버 API(gpt-image-1)를 호출합니다.
+        체크포인트/로라/VAE/CLIP, 그리고 아래 "고급 설정"(해상도/샘플러/스텝/CFG/시드)과
+        참조이미지/컨트롤넷/Img2Img/인페인팅/디테일러/모자이크 후처리는 전부 적용되지 않고 무시됩니다(추후 지원 예정). 🆕 단, 체크포인트가 필요 없는 "일반 업스케일"만은 위 "⬆️ 생성 직후 자동 업스케일" 체크박스로 적용됩니다.
+        API 키는 이 브라우저에만 저장되며 서버로는 이미지 생성 요청 시에만 함께 전달됩니다.
+    </p>
+</div>
+
+<!-- 🆕 외부 API(나노바나나/GPT/NAI) 공통 — 체크포인트가 필요한 모델 기반 업스케일/디테일러/모자이크는
+     못 붙이지만, 체크포인트 없이 돌아가는 "일반 업스케일"(Pillow Lanczos, /assetmanager/api/upscale_file)은
+     생성 직후 자동으로 적용할 수 있다. toggleArchitectureUI()가 isExternal일 때만 보여줌. -->
+<div class="form-group" id="api-post-upscale-row" style="display:none;">
+    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:normal;">
+        <input type="checkbox" id="toggle-api-post-upscale" data-help="api-post-upscale">
+        ⬆️ 생성 직후 자동 업스케일 (일반 업스케일 — 체크포인트 불필요)
+    </label>
+    <div style="display:flex; align-items:center; gap:8px; margin-top:6px; margin-left:26px;">
+        <label style="margin:0; font-weight:normal;">배율:</label>
+        <input type="number" id="api-post-upscale-scale" value="2" min="1.1" max="4" step="0.1" style="width:70px;">
+    </div>
+    <p style="font-size:0.78em; color:#999; margin:6px 0 0 26px;" data-help="api-post-upscale-note">
+        체크포인트 없이 바로 돌아가는 빠른 업스케일(Pillow Lanczos)입니다. 원본은 그대로 두고 같은 폴더의
+        upscaled 하위 폴더에 확대본을 추가로 저장합니다. 🆕 모델 기반 업스케일·디테일러·모자이크를 쓰고
+        싶으면, 이것과는 별개로 위에서 체크포인트를 고른 뒤 "고급 설정"의 업스케일링/디테일러/검열 체크박스를
+        켜세요 — 생성 완료 후 자동으로 큐에 추가되고, 끝나면 히스토리 패널에 따로 나타납니다(시간이 좀 걸립니다).
+    </p>
+</div>
+
+<!-- 🆕 나노바나나/GPT/NAI일 때만 표시 — 아래 체크포인트/VAE/CLIP/로라가 생성 자체엔 안 쓰이고
+     "고급 설정"의 업스케일링/디테일러/검열 후처리에만 쓰인다는 걸 알려줌(data-help: post-process-model-note) -->
+<p id="post-process-model-note" data-help="post-process-model-note" style="display:none; font-size:0.8em; color:#e0a030; margin:4px 0 8px;">
+    ⚠️ 아래 체크포인트/VAE/CLIP/로라는 나노바나나·GPT·NAI 생성 자체엔 쓰이지 않습니다. "고급 설정"의
+    업스케일링/디테일러/검열을 켰을 때만, 생성 완료 후 이 체크포인트로 후처리를 돌리는 데 쓰입니다.
+    후처리를 안 쓸 거면 비워둬도 됩니다.
+</p>
+<div class="form-group" id="sdxl-checkpoint-row" style="display:flex; align-items:center; gap: 8px;">
+    <label style="margin:0; width: 100px;">체크포인트:</label>
+    <select id="gen-checkpoint" style="flex:1;">
+        <option>모델 로딩 중...</option>
+    </select>
+</div>
+
+<div class="form-group" id="anima-unet-row" style="display:none; align-items:center; gap: 8px;">
+    <label style="margin:0; width: 100px;">UNet (Anima):</label>
+    <select id="gen-unet" style="flex:1;">
+        <option>모델 로딩 중...</option>
+    </select>
+</div>
+
+<div class="form-group" id="anima-ckpt-row" style="display:none; align-items:center; gap: 8px;">
+    <label style="margin:0; width: 100px;">체크포인트 (Anima):</label>
+    <select id="gen-anima-ckpt" style="flex:1;">
+        <option>모델 로딩 중...</option>
+    </select>
+</div>
+
+<div class="form-group" id="anima-source-toggle-row" style="display:none; align-items:center; gap: 8px;">
+    <label style="margin:0; width: 100px;"></label>
+    <label style="font-size:0.85em; color:#ccc; display:flex; align-items:center; gap:6px; cursor:pointer;">
+        <input type="checkbox" id="anima-use-checkpoint" onchange="toggleAnimaModelSourceUI()">
+        체크포인트 파일(unet+clip+vae 통합)에서 불러오기 — CLIP/VAE는 아래 아니마용 값을 그대로 사용하고 UNET만 추출합니다
+    </label>
+</div>
+
+<div class="form-group" id="sd3-unet-row" style="display:none; align-items:center; gap: 8px;">
+    <label style="margin:0; width: 100px;">UNet (SD3):</label>
+    <select id="gen-sd3-unet" style="flex:1;">
+        <option>모델 로딩 중...</option>
+    </select>
+</div>
+
+<div class="form-group" id="vae-row" style="display:flex; align-items:center; gap: 8px;">
+    <label style="margin:0; width: 100px;">VAE:</label>
+    <select id="gen-vae" style="flex:1;">
+        <option>모델 로딩 중...</option>
+    </select>
+</div>
+
+<div class="form-group" id="clip-row" style="display:flex; align-items:center; gap: 8px;">
+    <label style="margin:0; width: 100px;">CLIP:</label>
+    <select id="gen-clip" style="flex:1;">
+        <option>모델 로딩 중...</option>
+    </select>
+
+
+    </div>
+
+    <div class="form-group" id="lora-section">
+        <label>로라 (LoRA) 다중 선택</label>
+        <button class="btn-secondary" onclick="addLoraRow()" data-help="loraAddRow" style="margin-bottom: 10px;">+ 로라 추가</button>
+        <button type="button" class="btn-secondary" onclick="addRandomLoras(); this.blur();" data-help="loraRandom" onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation();}" style="margin-bottom: 10px; margin-left: 6px; border-color:#9C27B0; color:#CE93D8;">🎲 랜덤 로라</button>
+        <button type="button" class="btn-secondary" onclick="openRandomLoraExcludeModal(); this.blur();" data-help="loraRandomExclude" onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation();}" style="margin-bottom: 10px; margin-left: 6px;">🚫 제외 목록</button>
+        <div id="selected-loras"></div>
+    </div>
+</div>
+
+<script>
+// 🆕 NAI 캐릭터별 프롬프트+위치. 배열 하나로 상태 관리 (id로 각 행/미리보기 점을 매칭).
+let naiCharacters = [];
+let naiCharIdSeq = 0;
+
+function addNaiCharacterRow(positive = '', negative = '', x = 0.5, y = 0.5) {
+    naiCharacters.push({ id: ++naiCharIdSeq, positive, negative, x, y });
+    renderNaiCharacters();
+}
+
+function removeNaiCharacterRow(id) {
+    naiCharacters = naiCharacters.filter(c => c.id !== id);
+    renderNaiCharacters();
+}
+
+function updateNaiCharacterField(id, field, value) {
+    const c = naiCharacters.find(c => c.id === id);
+    if (c) c[field] = value;
+}
+
+function renderNaiCharacters() {
+    const list = document.getElementById('nai-characters-list');
+    if (!list) return;
+    list.innerHTML = naiCharacters.map((c, i) => `
+        <div style="border:1px solid #444; border-radius:6px; padding:8px; margin-bottom:8px; background:#1a1a1a;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <b style="font-size:0.85em; color:#CE93D8;">캐릭터 ${i + 1} (x:${c.x.toFixed(2)}, y:${c.y.toFixed(2)})</b>
+                <button type="button" class="btn-delete" onclick="removeNaiCharacterRow(${c.id})" title="이 캐릭터 삭제">✕</button>
+            </div>
+            <textarea class="nai-character-positive-textarea" placeholder="이 캐릭터 긍정 프롬프트 (예: 1girl, red hair, school uniform)" rows="2"
+                style="width:100%; margin-bottom:4px;" oninput="updateNaiCharacterField(${c.id}, 'positive', this.value)">${c.positive}</textarea>
+            <textarea class="nai-character-negative-textarea" placeholder="이 캐릭터 부정 프롬프트 (선택)" rows="1"
+                style="width:100%;" oninput="updateNaiCharacterField(${c.id}, 'negative', this.value)">${c.negative}</textarea>
+        </div>`).join('') || '<p style="font-size:0.78em; color:#666;">아직 캐릭터를 안 넣었습니다. 안 넣으면 평소처럼 단일 프롬프트로 생성됩니다.</p>';
+    renderNaiCharPositionPreview();
+}
+
+function renderNaiCharPositionPreview() {
+    const box = document.getElementById('nai-char-position-preview');
+    if (!box) return;
+    box.innerHTML = naiCharacters.map((c, i) => `
+        <div data-char-id="${c.id}" title="드래그해서 위치 지정 — 캐릭터 ${i + 1}"
+            style="position:absolute; left:${c.x * 100}%; top:${c.y * 100}%; transform:translate(-50%,-50%);
+                   width:28px; height:28px; border-radius:50%; background:rgba(206,147,216,0.85);
+                   border:2px solid #fff; color:#000; font-size:0.75em; font-weight:bold;
+                   display:flex; align-items:center; justify-content:center; cursor:grab; user-select:none;">${i + 1}</div>
+    `).join('');
+    box.querySelectorAll('[data-char-id]').forEach(dot => {
+        dot.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            const id = parseInt(dot.dataset.charId, 10);
+            const onMove = (ev) => {
+                const rect = box.getBoundingClientRect();
+                let x = (ev.clientX - rect.left) / rect.width;
+                let y = (ev.clientY - rect.top) / rect.height;
+                x = Math.min(1, Math.max(0, x));
+                y = Math.min(1, Math.max(0, y));
+                const c = naiCharacters.find(c => c.id === id);
+                if (c) { c.x = x; c.y = y; }
+                dot.style.left = (x * 100) + '%';
+                dot.style.top = (y * 100) + '%';
+            };
+            const onUp = () => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+                renderNaiCharacters(); // 좌표 텍스트(x:.. y:..) 갱신
+            };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+    });
+}
+
+// 🆕 NAI Img2Img — 업로드한 이미지를 base64로 들고 있다가 생성 요청에 실어 보낸다.
+let naiImg2ImgBase64 = null; // data URI 접두어 뺀 순수 base64 문자열
+
+let naiImg2ImgDataUrl = null; // 원본 전체 data URL (mime 보존 — 마스크 diff용)
+let naiInpaintMaskBase64 = null; // 사용자가 칠한 영역을 흑백 마스크 PNG로 변환한 base64 (접두어 없음)
+
+function handleNaiImg2ImgFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const dataUrl = e.target.result;
+        naiImg2ImgDataUrl = dataUrl;
+        naiImg2ImgBase64 = dataUrl.split(',')[1]; // "data:image/png;base64,AAAA..." → "AAAA..."
+        document.getElementById('nai-img2img-preview').src = dataUrl;
+        document.getElementById('nai-img2img-preview').style.display = 'block';
+        document.getElementById('nai-img2img-placeholder').style.display = 'none';
+        document.getElementById('nai-img2img-options').style.display = 'block';
+        clearNaiInpaintMask(); // 이미지가 바뀌면 이전 마스크는 무효화
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearNaiImg2Img() {
+    naiImg2ImgBase64 = null;
+    naiImg2ImgDataUrl = null;
+    document.getElementById('nai-img2img-file').value = '';
+    document.getElementById('nai-img2img-preview').style.display = 'none';
+    document.getElementById('nai-img2img-placeholder').style.display = 'block';
+    document.getElementById('nai-img2img-options').style.display = 'none';
+    clearNaiInpaintMask();
+}
+
+// 🆕 NAI 인페인팅 마스크 — 기존 "🎨 편집" 그림판(window.openPaintEditor)을 그대로 재사용.
+// 그림판 내부 구현을 몰라도 되게, "칠하기 전/후 이미지를 픽셀 단위로 비교"해서 달라진 부분을
+// 자동으로 흰색 마스크로 만든다(사용자가 어떤 색으로 칠하든 상관없이 동작함).
+function openNaiMaskPainter() {
+    if (!naiImg2ImgDataUrl) { alert('먼저 위에서 Img2Img 원본 이미지를 넣어주세요.'); return; }
+    if (typeof window.openPaintEditor !== 'function') { alert('그림판 편집 기능을 찾을 수 없습니다.'); return; }
+    window.openPaintEditor(naiImg2ImgDataUrl, (editedDataUrl) => {
+        buildNaiMaskFromDiff(naiImg2ImgDataUrl, editedDataUrl);
+    });
+}
+
+function buildNaiMaskFromDiff(originalDataUrl, editedDataUrl) {
+    const origImg = new Image();
+    origImg.onload = () => {
+        const editImg = new Image();
+        editImg.onload = () => {
+            const w = origImg.naturalWidth, h = origImg.naturalHeight;
+            const octx = Object.assign(document.createElement('canvas'), { width: w, height: h }).getContext('2d');
+            octx.drawImage(origImg, 0, 0, w, h);
+            const ectx = Object.assign(document.createElement('canvas'), { width: w, height: h }).getContext('2d');
+            ectx.drawImage(editImg, 0, 0, w, h); // 편집본이 크기가 달라졌어도 원본 크기에 맞춰 리샘플
+            const od = octx.getImageData(0, 0, w, h).data;
+            const ed = ectx.getImageData(0, 0, w, h).data;
+
+            const maskCanvas = document.createElement('canvas');
+            maskCanvas.width = w; maskCanvas.height = h;
+            const mctx = maskCanvas.getContext('2d');
+            const mimg = mctx.createImageData(w, h);
+            const THRESHOLD = 24; // RGB 거리 허용치 — 그림판의 미세한 안티에일리어싱/압축 손실은 무시
+            for (let i = 0; i < od.length; i += 4) {
+                const dr = od[i] - ed[i], dg = od[i + 1] - ed[i + 1], db = od[i + 2] - ed[i + 2];
+                const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+                const v = dist > THRESHOLD ? 255 : 0;
+                mimg.data[i] = v; mimg.data[i + 1] = v; mimg.data[i + 2] = v; mimg.data[i + 3] = 255;
+            }
+            mctx.putImageData(mimg, 0, 0);
+
+            const maskDataUrl = maskCanvas.toDataURL('image/png');
+            naiInpaintMaskBase64 = maskDataUrl.split(',')[1];
+            document.getElementById('nai-inpaint-mask-preview').src = maskDataUrl;
+            document.getElementById('nai-inpaint-mask-preview').style.display = 'block';
+            document.getElementById('nai-inpaint-status').textContent = '✅ 마스크 생성됨 (흰색 = 다시 그려질 영역)';
+        };
+        editImg.src = editedDataUrl;
+    };
+    origImg.src = originalDataUrl;
+}
+
+function clearNaiInpaintMask() {
+    naiInpaintMaskBase64 = null;
+    const preview = document.getElementById('nai-inpaint-mask-preview');
+    if (preview) preview.style.display = 'none';
+    const status = document.getElementById('nai-inpaint-status');
+    if (status) status.textContent = '';
+}
+
+// 🆕 NAI Vibe Transfer — 참조 이미지 여러 장을 배열로 관리 (각각 정보추출/적용강도 조절 가능)
+let naiVibeImages = [];
+let naiVibeIdSeq = 0;
+
+function addNaiVibeImage(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        naiVibeImages.push({
+            id: ++naiVibeIdSeq,
+            dataUrl: e.target.result,
+            base64: e.target.result.split(',')[1],
+            extracted: 1.0,
+            strength: 0.6
+        });
+        renderNaiVibeList();
+    };
+    reader.readAsDataURL(file);
+}
+
+function removeNaiVibeImage(id) {
+    naiVibeImages = naiVibeImages.filter(v => v.id !== id);
+    renderNaiVibeList();
+}
+
+function updateNaiVibeField(id, field, value) {
+    const v = naiVibeImages.find(v => v.id === id);
+    if (v) v[field] = parseFloat(value);
+}
+
+function renderNaiVibeList() {
+    const list = document.getElementById('nai-vibe-list');
+    if (!list) return;
+    list.innerHTML = naiVibeImages.map((v, i) => `
+        <div style="display:flex; gap:10px; align-items:flex-start; border:1px solid #444; border-radius:6px; padding:8px; margin-bottom:8px; background:#1a1a1a;">
+            <img src="${v.dataUrl}" style="width:64px; height:64px; object-fit:cover; border-radius:4px; flex-shrink:0;">
+            <div style="flex:1;">
+                <div style="display:flex; justify-content:space-between;">
+                    <b style="font-size:0.82em; color:#81D4FA;">참조 이미지 ${i + 1}</b>
+                    <button type="button" class="btn-delete" onclick="removeNaiVibeImage(${v.id})" title="삭제">✕</button>
+                </div>
+                <label style="font-size:0.78em; font-weight:normal; display:flex; align-items:center; gap:6px; margin-top:4px;">정보 추출:
+                    <input type="number" min="0" max="1" step="0.05" value="${v.extracted}" style="width:60px;"
+                        onchange="updateNaiVibeField(${v.id}, 'extracted', this.value)">
+                </label>
+                <label style="font-size:0.78em; font-weight:normal; display:flex; align-items:center; gap:6px; margin-top:4px;">적용 강도:
+                    <input type="number" min="0" max="1" step="0.05" value="${v.strength}" style="width:60px;"
+                        onchange="updateNaiVibeField(${v.id}, 'strength', this.value)">
+                </label>
+            </div>
+        </div>`).join('') || '<p style="font-size:0.78em; color:#666;">아직 참조 이미지를 안 넣었습니다.</p>';
+}
+
+// 🆕 NAI 모델에 따라 켜고 끌 기능 행들 — Precise Reference(V4.5 전용), Text Rendering(V3 제외 전부),
+// Transparent BG(V5 전용). 모델 드롭다운 바뀔 때마다 호출됨.
+function toggleNaiModelFeatureRows() {
+    const model = document.getElementById('nai-model')?.value || '';
+    const isV45 = model.includes('nai-diffusion-4-5');
+    const isV5 = model.includes('nai-diffusion-5');
+    const isV3 = model === 'nai-diffusion-3';
+    // 🆕 V5 생성 시 Vibe Transfer/Precise Reference(둘 다 encode-vibe→reference_image_multiple 경유) 호출이
+    // 서버에서 500으로 실패하는 걸 확인(V4.5는 정상). 아직 V5가 이 기능 자체를 지원 안 하는 것으로 보여서,
+    // 에러 유발을 막기 위해 V5에서는 두 섹션 다 숨긴다. NAI가 V5 지원을 추가하면 이 isV5 조건을 풀면 됨.
+    document.getElementById('nai-precise-ref-section').style.display = (!isV3 && !isV5) ? 'block' : 'none';
+    document.getElementById('nai-vibe-section').style.display = isV5 ? 'none' : 'block';
+    document.getElementById('nai-text-render-section').style.display = isV3 ? 'none' : 'block';
+    document.getElementById('nai-transparent-bg-row').style.display = isV5 ? 'block' : 'none';
+}
+
+// 🆕 NAI Precise Reference — Vibe Transfer보다 더 정밀한 참조(캐릭터/스타일/둘다 + 강도 + 충실도)
+let naiPreciseRefImages = [];
+let naiPreciseRefIdSeq = 0;
+
+function addNaiPreciseRefImage(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        naiPreciseRefImages.push({
+            id: ++naiPreciseRefIdSeq,
+            dataUrl: e.target.result,
+            base64: e.target.result.split(',')[1],
+            refType: 'character', // character | style | character_style
+            strength: 1.0,
+            fidelity: 0.75
+        });
+        renderNaiPreciseRefList();
+    };
+    reader.readAsDataURL(file);
+}
+
+function removeNaiPreciseRefImage(id) {
+    naiPreciseRefImages = naiPreciseRefImages.filter(v => v.id !== id);
+    renderNaiPreciseRefList();
+}
+
+function updateNaiPreciseRefField(id, field, value) {
+    const v = naiPreciseRefImages.find(v => v.id === id);
+    if (!v) return;
+    v[field] = (field === 'refType') ? value : parseFloat(value);
+}
+
+function renderNaiPreciseRefList() {
+    const list = document.getElementById('nai-precise-ref-list');
+    if (!list) return;
+    list.innerHTML = naiPreciseRefImages.map((v, i) => `
+        <div style="display:flex; gap:10px; align-items:flex-start; border:1px solid #444; border-radius:6px; padding:8px; margin-bottom:8px; background:#1a1a1a;">
+            <img src="${v.dataUrl}" style="width:64px; height:64px; object-fit:cover; border-radius:4px; flex-shrink:0;">
+            <div style="flex:1;">
+                <div style="display:flex; justify-content:space-between;">
+                    <b style="font-size:0.82em; color:#FFCC80;">참조 ${i + 1}</b>
+                    <button type="button" class="btn-delete" onclick="removeNaiPreciseRefImage(${v.id})" title="삭제">✕</button>
+                </div>
+                <select style="width:auto; font-size:0.8em; margin-top:4px;" onchange="updateNaiPreciseRefField(${v.id}, 'refType', this.value)">
+                    <option value="character" ${v.refType === 'character' ? 'selected' : ''}>캐릭터만</option>
+                    <option value="style" ${v.refType === 'style' ? 'selected' : ''}>스타일만</option>
+                    <option value="character_style" ${v.refType === 'character_style' ? 'selected' : ''}>캐릭터+스타일</option>
+                </select>
+                <label style="font-size:0.78em; font-weight:normal; display:flex; align-items:center; gap:6px; margin-top:4px;">강도(Strength):
+                    <input type="number" min="0" max="1" step="0.05" value="${v.strength}" style="width:60px;"
+                        onchange="updateNaiPreciseRefField(${v.id}, 'strength', this.value)">
+                </label>
+                <label style="font-size:0.78em; font-weight:normal; display:flex; align-items:center; gap:6px; margin-top:4px;">충실도(Fidelity):
+                    <input type="number" min="0" max="1" step="0.05" value="${v.fidelity}" style="width:60px;"
+                        onchange="updateNaiPreciseRefField(${v.id}, 'fidelity', this.value)">
+                </label>
+            </div>
+        </div>`).join('') || '<p style="font-size:0.78em; color:#666;">아직 참조 이미지를 안 넣었습니다.</p>';
+}
+
+function toggleNaiCustomResolution() {
+    const sel = document.getElementById('nai-resolution').value;
+    const row = document.getElementById('nai-resolution-custom-row');
+    const isCustom = sel === 'custom';
+    row.style.display = isCustom ? 'flex' : 'none';
+    if (!isCustom) {
+        const [w, h] = sel.split('x');
+        document.getElementById('nai-custom-width').value = w;
+        document.getElementById('nai-custom-height').value = h;
+    }
+}
+
+function toggleArchitectureUI() {
+    const arch = document.getElementById('gen-architecture').value;
+    const isAnima = arch === 'anima';
+    const isSd3   = arch === 'sd3';
+    const isNano  = arch === 'nanobanana';
+    const isNai   = arch === 'nai';
+    const isGpt   = arch === 'gpt';
+    const isExternal = isNano || isNai || isGpt; // 로컬 ComfyUI 모델을 안 쓰는(외부 API) 아키텍처
+    document.getElementById('sdxl-checkpoint-row').style.display = (isAnima || isSd3) ? 'none' : 'flex';
+    document.getElementById('anima-source-toggle-row').style.display = isAnima ? 'flex' : 'none';
+    document.getElementById('sd3-unet-row').style.display   = isSd3   ? 'flex' : 'none';
+    document.getElementById('nanobanana-row').style.display = isNano ? 'block' : 'none';
+    document.getElementById('nai-row').style.display = isNai ? 'block' : 'none';
+    document.getElementById('gpt-row').style.display = isGpt ? 'block' : 'none';
+    document.getElementById('api-post-upscale-row').style.display = isExternal ? 'block' : 'none';
+    // 🆕 (예전엔 isExternal이면 체크포인트/VAE/CLIP/로라를 전부 숨겼음) 나노바나나/GPT/NAI 생성 자체엔
+    // 여전히 안 쓰이지만, "고급 설정"의 업스케일링/디테일러/검열 체크박스를 켠 경우 그 후처리에만 이
+    // 체크포인트(+VAE/CLIP/로라)를 재사용한다(applyLocalPostProcessToExternalImage(), generate.js) —
+    // 그래서 더 이상 숨기지 않음. 대신 헷갈리지 않게 아래 안내문을 띄워줌.
+    document.getElementById('vae-row').style.display   = 'flex';
+    document.getElementById('clip-row').style.display  = 'flex';
+    document.getElementById('lora-section').style.display = 'block';
+    document.getElementById('post-process-model-note').style.display = isExternal ? 'block' : 'none';
+    if (isNano) {
+        const savedKey = localStorage.getItem('nanoBananaApiKey');
+        if (savedKey) document.getElementById('nanobanana-api-key').value = savedKey;
+    } else if (isGpt) {
+        const savedGptKey = localStorage.getItem('gptApiKey');
+        if (savedGptKey) document.getElementById('gpt-api-key').value = savedGptKey;
+    } else if (isNai) {
+        const savedToken = localStorage.getItem('naiApiToken');
+        if (savedToken) document.getElementById('nai-api-token').value = savedToken;
+        toggleNaiCustomResolution();
+        toggleNaiModelFeatureRows();
+    } else {
+        toggleAnimaModelSourceUI();
+        if (typeof syncClipForArchitecture === 'function') syncClipForArchitecture();
+        if (typeof syncVaeForArchitecture === 'function') syncVaeForArchitecture();
+        /* 🐛 수정: 체크포인트/Unet/VAE/CLIP을 다 맞게 골라도(심지어 "체크포인트에서 UNET만 추출" 모드를
+           켜도) 고급 설정의 샘플러/스케줄러는 이 함수가 전혀 안 건드려서 SDXL용 기본값(euler_ancestral +
+           scheduler "normal")에 그대로 멈춰 있었다. generate.js 상단 주석에 실측으로 확인된 조합은
+           euler_ancestral + scheduler "simple"인데 이게 전혀 안 걸렸던 것 — 아니마로 뽑을 때마다
+           품질이 이상하게 나오던 실제 원인. 아키텍처를 아니마로 바꿀 때 그 조합을 자동으로 맞춰준다
+           (필요하면 바꾼 뒤에 직접 또 바꿔도 됨, 이건 그냥 시작값을 맞는 값으로 바꿔주는 것뿐임). */
+        if (isAnima) {
+            const samplerEl = document.getElementById('adv-sampler');
+            const schedulerEl = document.getElementById('adv-scheduler');
+            if (samplerEl) samplerEl.value = 'euler_ancestral';
+            if (schedulerEl) schedulerEl.value = 'simple';
+            if (typeof appStateManager !== 'undefined' && window.appStateLoaded) appStateManager.debounceSave();
+        }
+    }
+}
+
+/** 아니마 모델을 UNet 파일로 불러올지, 체크포인트(unet+clip+vae 통합) 파일에서 UNET만 뽑아 쓸지 전환 */
+function toggleAnimaModelSourceUI() {
+    const arch = document.getElementById('gen-architecture').value;
+    const isAnima = arch === 'anima';
+    const useCkpt = isAnima && document.getElementById('anima-use-checkpoint').checked;
+    document.getElementById('anima-unet-row').style.display = (isAnima && !useCkpt) ? 'flex' : 'none';
+    document.getElementById('anima-ckpt-row').style.display = useCkpt ? 'flex' : 'none';
+    if (typeof appStateManager !== 'undefined' && window.appStateLoaded) appStateManager.debounceSave();
+}
+</script>                <div class="form-section">
+                    <h3>2. 고급 설정 (Advanced Settings)</h3>
+                    <div id="adv-settings-body">
+                        <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:100px;">해상도:</label>
+                            <select id="adv-dimensions" style="flex:1;">
+                                <option value="1536 x 640   (landscape)">1536 × 640 (가로 극단)</option>
+                                <option value="1344 x 768   (landscape)">1344 × 768 (가로 길쭉)</option>
+                                <option value="1216 x 832   (landscape)">1216 × 832 (가로 3:2)</option>
+                                <option value="1152 x 896   (landscape)">1152 × 896 (가로)</option>
+                                <option value="1024 x 1024  (square)">1024 × 1024 (정사각형)</option>
+                                <option value=" 896 x 1152  (portrait)"> 896 × 1152 (세로)</option>
+                                <option value=" 832 x 1216  (portrait)"> 832 × 1216 (세로 2:3)</option>
+                                <option value=" 768 x 1344  (portrait)"> 768 × 1344 (세로 길쭉)</option>
+                                <option value=" 640 x 1536  (portrait)"> 640 × 1536 (세로 극단)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:100px;">샘플러:</label>
+                            <select id="adv-sampler" style="flex:1;">
+                                <option value="euler_ancestral">Euler Ancestral</option>
+                                <option value="euler">Euler</option>
+                                <option value="dpmpp_2m">DPM++ 2M</option>
+                                <option value="dpmpp_2m_sde">DPM++ 2M SDE</option>
+                                <option value="dpmpp_sde">DPM++ SDE</option>
+                                <option value="dpmpp_3m_sde">DPM++ 3M SDE</option>
+                                <option value="ddim">DDIM</option>
+                                <option value="uni_pc">UniPC</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:100px;">스케줄러:</label>
+                            <select id="adv-scheduler" style="flex:1;">
+                                <option value="normal">Normal</option>
+                                <option value="karras">Karras</option>
+                                <option value="exponential">Exponential</option>
+                                <option value="sgm_uniform">SGM Uniform</option>
+                                <option value="simple">Simple</option>
+                                <option value="ddim_uniform">DDIM Uniform</option>
+                                <option value="beta">Beta</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:100px;">Steps:</label>
+                            <input type="number" id="adv-steps" value="28" min="1" max="150" style="width:80px;">
+                        </div>
+                        <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:100px;">CFG:</label>
+                            <input type="number" id="adv-cfg" value="5" min="1" max="30" step="0.5" style="width:80px;">
+                        </div>
+                        <div class="form-group" data-help="adv-seed" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:100px;">시드:</label>
+                            <input type="checkbox" id="adv-seed-random" checked
+                                onchange="document.getElementById('adv-seed').disabled=this.checked; if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                            <label for="adv-seed-random"
+                                style="margin:0; font-weight:normal; cursor:pointer;">랜덤</label>
+                            <input type="number" id="adv-seed" disabled placeholder="랜덤"
+                                style="flex:1; margin-left:8px;">
+                        </div>
+                    </div>
+                </div>
+
+<div class="form-section">
+    <h3>3. 베이스 프롬프트 (Base Prompts)</h3>
+    <p style="font-size: 0.8em; color: #aaa; margin-top: -10px;">단일 생성과 배치 생성 모두에 기본으로 깔리는 프롬프트입니다.</p>
+    <div class="form-group"><label>공통 긍정 (Positive) <button type="button" id="camera-popup-btn" class="btn-secondary" style="margin-left:8px; padding:1px 9px; font-size:0.85em;" onclick="if (typeof toggleCameraPopup === 'function') toggleCameraPopup();" title="📷 카메라 구도 팝업 — 카메라 위치를 맞추면 구도 프롬프트가 만들어져 여기에 자동 반영됩니다">📷 구도</button></label><textarea id="base-pos"
+            placeholder="masterpiece, best quality..."></textarea></div>
+    <div class="form-group"><label>공통 부정 (Negative)</label><textarea id="base-neg"
+            placeholder="worst quality, low quality..."></textarea></div>
+
+
+</div>
+                <div class="form-section">
+                    <h3>4. 참조 이미지 (IP-Adapter)</h3>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="toggle-ipadapter" onchange="toggleSubOptions('ipadapter-opts', this); if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                        <label for="toggle-ipadapter" style="font-weight: bold; cursor: pointer;">IP-Adapter 적용</label>
+                    </div>
+                    <div id="ipadapter-opts" class="sub-options" style="display: none;">
+
+                        <!-- 참조 이미지 업로드 -->
+                        <div class="option-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                            <label style="font-weight: bold;">참조 이미지</label>
+                            <div style="display:flex; gap:8px; width:100%; align-items:center;">
+                                <input type="file" id="ipadapter-image-input" accept="image/*" style="display:none;"
+                                    onchange="handleIPAdapterImageSelect(this)">
+                                <button class="btn-secondary" style="white-space:nowrap; padding: 5px 12px;"
+                                    onclick="document.getElementById('ipadapter-image-input').click()">📁 이미지 선택</button>
+                                <span id="ipadapter-image-name" style="font-size:0.85em; color:#aaa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">선택된 파일 없음</span>
+                                <button id="ipadapter-image-clear" style="display:none; padding:3px 8px; background:#844; border:none; border-radius:4px; color:#fff; cursor:pointer; flex-shrink:0;"
+                                    onclick="clearIPAdapterImage()">✕</button>
+                            </div>
+                            <div id="ipadapter-preview-wrap" style="display:none; margin-top:4px;">
+                                <img id="ipadapter-preview-img" style="max-width:120px; max-height:120px; border-radius:6px; border:1px solid #555; object-fit:cover;">
+                                <button onclick="openPaintEditorFor('ipadapter')" style="display:block; margin-top:4px; padding:3px 10px; font-size:0.8em; background:#1a3a2a; border:1px solid #4CAF50; border-radius:4px; color:#4CAF50; cursor:pointer;">🎨 이미지 편집 (그림판)</button>
+                            </div>
+                            <div id="ipadapter-upload-status" style="font-size:0.8em; color:#888;"></div>
+                        </div>
+
+                        <!-- 모델 선택 (동적 로딩) -->
+                        <div class="option-row" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:110px;">IP-Adapter 모델</label>
+                            <select id="ipadapter-model" style="flex:1;" onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                                <option value="">로딩 중...</option>
+                            </select>
+                        </div>
+
+                        <!-- CLIP Vision 선택 (동적 로딩) -->
+                        <div class="option-row" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:110px;">CLIP Vision</label>
+                            <input type="checkbox" id="toggle-ipadapter-clipvision" checked
+                                onchange="
+                                    document.getElementById('ipadapter-clip-vision').disabled = !this.checked;
+                                    document.getElementById('ipadapter-clip-vision').style.opacity = this.checked ? '1' : '0.4';
+                                    if(typeof appStateManager!=='undefined') appStateManager.debounceSave();
+                                " title="CLIP Vision 사용 여부">
+                            <label for="toggle-ipadapter-clipvision" style="margin:0; font-size:0.85em; color:#aaa; cursor:pointer; white-space:nowrap;">사용</label>
+                            <select id="ipadapter-clip-vision" style="flex:1;" onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                                <option value="">로딩 중...</option>
+                            </select>
+                        </div>
+
+                        <!-- Weight -->
+                        <div class="option-row" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:110px;">강도 (Weight)</label>
+                            <input type="range" id="ipadapter-weight" min="0" max="1" step="0.05" value="0.6" style="flex:1;"
+                                oninput="document.getElementById('ipadapter-weight-val').innerText=parseFloat(this.value).toFixed(2); if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                            <span id="ipadapter-weight-val" style="width:35px; text-align:right;">0.60</span>
+                        </div>
+
+                        <!-- Weight Type -->
+                        <div class="option-row" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:110px;">Weight 타입</label>
+                            <select id="ipadapter-weight-type" style="flex:1;">
+                                <option value="linear">linear</option>
+                                <option value="ease in">ease in</option>
+                                <option value="ease out">ease out</option>
+                                <option value="ease in-out">ease in-out</option>
+                                <option value="style transfer">style transfer</option>
+                                <option value="composition">composition</option>
+                            </select>
+                        </div>
+
+                        <!-- Start / End -->
+                        <div class="option-row" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:110px;">적용 구간</label>
+                            <label style="font-size:0.85em; color:#aaa; margin:0;">시작</label>
+                            <input type="number" id="ipadapter-start" value="0.0" min="0" max="1" step="0.05" style="width:60px;">
+                            <label style="font-size:0.85em; color:#aaa; margin:0;">끝</label>
+                            <input type="number" id="ipadapter-end" value="1.0" min="0" max="1" step="0.05" style="width:60px;">
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>5. 컨트롤넷 (ControlNet)</h3>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="toggle-controlnet" onchange="toggleSubOptions('controlnet-opts', this); if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                        <label for="toggle-controlnet" style="font-weight: bold; cursor: pointer;">ControlNet 적용</label>
+                    </div>
+                    <div id="controlnet-opts" class="sub-options" style="display: none;">
+
+                        <!-- 레퍼런스 이미지 업로드 -->
+                        <div class="option-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                            <label style="font-weight: bold;">레퍼런스 이미지</label>
+                            <div style="display:flex; gap:8px; width:100%; align-items:center;">
+                                <input type="file" id="controlnet-image-input" accept="image/*" style="display:none;"
+                                    onchange="handleControlNetImageSelect(this)">
+                                <button class="btn-secondary" style="white-space:nowrap; padding: 5px 12px;"
+                                    onclick="document.getElementById('controlnet-image-input').click()">📁 이미지 선택</button>
+                                <span id="controlnet-image-name" style="font-size:0.85em; color:#aaa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">선택된 파일 없음</span>
+                                <button id="controlnet-image-clear" style="display:none; padding:3px 8px; background:#844; border:none; border-radius:4px; color:#fff; cursor:pointer; flex-shrink:0;"
+                                    onclick="clearControlNetImage()">✕</button>
+                            </div>
+                            <div id="controlnet-preview-wrap" style="display:none; margin-top:4px;">
+                                <img id="controlnet-preview-img" style="max-width:120px; max-height:120px; border-radius:6px; border:1px solid #555; object-fit:cover;">
+                                <button onclick="openPaintEditorFor('controlnet')" style="display:block; margin-top:4px; padding:3px 10px; font-size:0.8em; background:#1a3a2a; border:1px solid #4CAF50; border-radius:4px; color:#4CAF50; cursor:pointer;">🎨 이미지 편집 (그림판)</button>
+                            </div>
+                            <div id="controlnet-upload-status" style="font-size:0.8em; color:#888;"></div>
+                        </div>
+
+                        <!-- 전처리기 선택 -->
+                        <div class="option-row" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:110px;">전처리기</label>
+                            <select id="controlnet-preprocessor" style="flex:1;" onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                                <option value="CannyEdgePreprocessor">Canny (윤곽선)</option>
+                                <option value="DepthAnythingV2Preprocessor">Depth (깊이맵)</option>
+                                <option value="OpenposePreprocessor">OpenPose (포즈)</option>
+                                <option value="LineArtPreprocessor">LineArt (선화)</option>
+                            </select>
+                        </div>
+
+                        <!-- ControlNet 모델 선택 (동적 로딩) -->
+                        <div class="option-row" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:110px;">CN 모델</label>
+                            <select id="controlnet-model" style="flex:1;" onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                                <option value="">로딩 중...</option>
+                            </select>
+                        </div>
+
+                        <!-- Strength -->
+                        <div class="option-row" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:110px;">강도 (Strength)</label>
+                            <input type="range" id="controlnet-strength" min="0" max="2" step="0.05" value="1.0" style="flex:1;"
+                                oninput="document.getElementById('controlnet-strength-val').innerText=parseFloat(this.value).toFixed(2); if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                            <span id="controlnet-strength-val" style="width:35px; text-align:right;">1.00</span>
+                        </div>
+
+                        <!-- Start / End -->
+                        <div class="option-row" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:110px;">적용 구간</label>
+                            <label style="font-size:0.85em; color:#aaa; margin:0;">시작</label>
+                            <input type="number" id="controlnet-start" value="0.0" min="0" max="1" step="0.05" style="width:60px;">
+                            <label style="font-size:0.85em; color:#aaa; margin:0;">끝</label>
+                            <input type="number" id="controlnet-end" value="1.0" min="0" max="1" step="0.05" style="width:60px;">
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>6. 이미지 투 이미지 (Img2Img)</h3>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="toggle-img2img" onchange="toggleSubOptions('img2img-opts', this); if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                        <label for="toggle-img2img" style="font-weight: bold; cursor: pointer;">Img2Img 적용</label>
+                    </div>
+                    <div id="img2img-opts" class="sub-options" style="display: none;">
+
+                        <!-- 원본 이미지 업로드 -->
+                        <div class="option-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                            <label style="font-weight: bold;">원본 이미지</label>
+                            <div style="display:flex; gap:8px; width:100%; align-items:center;">
+                                <input type="file" id="img2img-image-input" accept="image/*" style="display:none;"
+                                    onchange="handleImg2ImgImageSelect(this)">
+                                <button class="btn-secondary" style="white-space:nowrap; padding: 5px 12px;"
+                                    onclick="document.getElementById('img2img-image-input').click()">📁 이미지 선택</button>
+                                <span id="img2img-image-name" style="font-size:0.85em; color:#aaa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">선택된 파일 없음</span>
+                                <button id="img2img-image-clear" style="display:none; padding:3px 8px; background:#844; border:none; border-radius:4px; color:#fff; cursor:pointer; flex-shrink:0;"
+                                    onclick="clearImg2ImgImage()">✕</button>
+                            </div>
+                            <!-- 드래그 앤 드롭 영역 -->
+                            <div id="img2img-drop-zone"
+                                 style="width:100%; box-sizing:border-box; border: 2px dashed #555; border-radius: 6px;
+                                        padding: 8px 12px; text-align: center; color: #777; font-size: 0.82em;
+                                        cursor: pointer; transition: border-color 0.2s;"
+                                 onclick="document.getElementById('img2img-image-input').click()"
+                                 ondragover="event.preventDefault(); this.style.borderColor='#4CAF50';"
+                                 ondragleave="this.style.borderColor='#555';"
+                                 ondrop="event.preventDefault(); this.style.borderColor='#555'; handleImg2ImgDrop(event);">
+                                여기에 이미지를 드롭하거나 클릭
+                            </div>
+                            <div id="img2img-preview-wrap" style="display:none; margin-top:4px;">
+                                <img id="img2img-preview-img" style="max-width:160px; max-height:160px; border-radius:6px; border:1px solid #555; object-fit:cover;">
+                                <button onclick="openPaintEditorFor('img2img')" style="display:block; margin-top:4px; padding:3px 10px; font-size:0.8em; background:#1a3a2a; border:1px solid #4CAF50; border-radius:4px; color:#4CAF50; cursor:pointer;">🎨 이미지 편집 (그림판)</button>
+                            </div>
+                            <div id="img2img-upload-status" style="font-size:0.8em; color:#888;">업로드 대기 중</div>
+                        </div>
+
+                        <!-- Denoise 슬라이더 -->
+                        <div class="option-row" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:110px;">Denoise</label>
+                            <input type="range" id="img2img-denoise" min="0.01" max="1.0" step="0.01" value="0.65" style="flex:1;"
+                                oninput="document.getElementById('img2img-denoise-val').innerText=parseFloat(this.value).toFixed(2); document.getElementById('img2img-denoise-num').value=parseFloat(this.value).toFixed(2); try{localStorage.setItem('img2img-denoise',this.value);}catch(e){} if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                            <input type="number" id="img2img-denoise-num" min="0.01" max="1.0" step="0.01" value="0.65" style="width:60px; padding:3px;"
+                                oninput="const v=Math.min(1,Math.max(0.01,parseFloat(this.value)||0.65)); document.getElementById('img2img-denoise').value=v; document.getElementById('img2img-denoise-val').innerText=v.toFixed(2); try{localStorage.setItem('img2img-denoise',v);}catch(e){}">
+                            <span id="img2img-denoise-val" style="width:35px; text-align:right;">0.65</span>
+                        </div>
+                        <div style="font-size:0.78em; color:#777; margin: -4px 0 4px; padding-left:4px;">
+                            낮을수록 원본에 가깝게 · 높을수록 새로 생성 (1.0 = txt2img와 동일)
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>7. 인페인팅 (Inpaint)</h3>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="toggle-inpaint" onchange="toggleSubOptions('inpaint-opts', this); if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                        <label for="toggle-inpaint" style="font-weight: bold; cursor: pointer;">Inpaint 적용</label>
+                    </div>
+                    <div id="inpaint-opts" class="sub-options" style="display: none;">
+
+                        <!-- 원본 이미지 업로드 -->
+                        <div class="option-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                            <label style="font-weight: bold;">원본 이미지</label>
+                            <div style="display:flex; gap:8px; width:100%; align-items:center;">
+                                <input type="file" id="inpaint-image-input" accept="image/*" style="display:none;"
+                                    onchange="handleInpaintImageSelect(this)">
+                                <button class="btn-secondary" style="white-space:nowrap; padding: 5px 12px;"
+                                    onclick="document.getElementById('inpaint-image-input').click()">📁 이미지 선택</button>
+                                <span id="inpaint-image-name" style="font-size:0.85em; color:#aaa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">선택된 파일 없음</span>
+                                <button id="inpaint-image-clear" style="display:none; padding:3px 8px; background:#844; border:none; border-radius:4px; color:#fff; cursor:pointer; flex-shrink:0;"
+                                    onclick="clearInpaintImage()">✕</button>
+                            </div>
+                            <div id="inpaint-upload-status" style="font-size:0.8em; color:#888;"></div>
+                            <button id="inpaint-paint-edit-btn" onclick="openPaintEditorFor('inpaint')" style="display:none; padding:3px 10px; font-size:0.8em; background:#1a3a2a; border:1px solid #4CAF50; border-radius:4px; color:#4CAF50; cursor:pointer; margin-top:2px;">🎨 원본 이미지 편집 (그림판)</button>
+                        </div>
+
+                        <!-- 마스크 캔버스 -->
+                        <div class="option-row" style="flex-direction:column; align-items:flex-start; gap:6px;">
+                            <label style="font-weight:bold;">마스크 드로잉</label>
+
+                            <!-- 브러시 툴바 -->
+                            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:4px;">
+                                <label style="font-size:0.85em; color:#aaa; margin:0;">크기</label>
+                                <input type="range" id="inpaint-brush-size" min="1" max="200" value="30" style="width:80px;"
+                                    oninput="document.getElementById('inpaint-brush-size-val').textContent=this.value">
+                                <span id="inpaint-brush-size-val" style="font-size:0.85em; width:25px;">30</span>
+
+                                <label style="font-size:0.85em; color:#aaa; margin:0;">경도</label>
+                                <input type="range" id="inpaint-brush-hardness" min="0" max="1" step="0.05" value="0.85" style="width:80px;"
+                                    oninput="document.getElementById('inpaint-brush-hardness-val').textContent=parseFloat(this.value).toFixed(2)">
+                                <span id="inpaint-brush-hardness-val" style="font-size:0.85em; width:30px;">0.85</span>
+
+                                <button id="inpaint-eraser-toggle" class="btn-secondary" style="padding:3px 10px; font-size:0.85em;">🧹 지우개</button>
+                                <button id="inpaint-clear-mask" class="btn-secondary" style="padding:3px 10px; font-size:0.85em;">🗑 마스크 초기화</button>
+                                <button id="inpaint-upload-mask-btn" class="btn-secondary" style="padding:3px 10px; font-size:0.85em;">⬆ 마스크 업로드</button>
+                            </div>
+                            <span id="inpaint-mask-status" style="font-size:0.8em; color:#888;"></span>
+
+                            <!-- 캔버스 래퍼 -->
+                            <div id="inpaint-canvas-wrap" style="position:relative; width:100%; max-width:512px; border:1px solid #555; border-radius:6px; overflow:hidden; background:#111; cursor:crosshair;">
+                                <img id="inpaint-canvas-bg" style="display:block; width:100%; height:auto; pointer-events:none; user-select:none;">
+                                <canvas id="inpaint-mask-canvas" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0.6; touch-action:none;"></canvas>
+                            </div>
+                            <p style="font-size:0.78em; color:#777; margin:2px 0 0;">흰색으로 칠한 영역이 인페인팅됩니다. 이미지를 먼저 선택하면 캔버스가 활성화됩니다.</p>
+                        </div>
+
+                        <!-- Denoise -->
+                        <div class="option-row" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:110px;">강도 (Denoise)</label>
+                            <input type="range" id="inpaint-denoise" min="0" max="1" step="0.05" value="0.75" style="flex:1;"
+                                oninput="document.getElementById('inpaint-denoise-val').innerText=parseFloat(this.value).toFixed(2); try{localStorage.setItem('inpaint-denoise',this.value);}catch(e){} if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                            <span id="inpaint-denoise-val" style="width:35px; text-align:right;">0.75</span>
+                        </div>
+
+                        <!-- Grow Mask -->
+                        <div class="option-row" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:110px;">마스크 확장(px)</label>
+                            <input type="number" id="inpaint-grow-mask" value="6" min="0" max="64" step="1" style="width:60px;">
+                        </div>
+
+
+
+                        <!-- 이미지 크기 입력 -->
+                        <div class="option-row" style="align-items:center; gap:8px;">
+                            <label style="margin:0; width:110px; font-weight:bold;">이미지 크기</label>
+                            <input type="number" id="inpaint-img-width"  value="896"  min="64" max="4096" step="8" style="width:70px;" title="너비(px)">
+                            <span style="font-size:0.9em; color:#888;">×</span>
+                            <input type="number" id="inpaint-img-height" value="1152" min="64" max="4096" step="8" style="width:70px;" title="높이(px)">
+                            <button id="inpaint-sync-size-btn" class="btn-secondary" style="padding:3px 8px; font-size:0.8em;" title="현재 해상도 선택값에서 자동 채우기">↺ 해상도 동기화</button>
+                        </div>
+
+                        <!-- 신체 부위 자동 마스크 -->
+                        <div class="option-row" style="flex-direction:column; align-items:flex-start; gap:8px;">
+                            <label style="font-weight:bold;">신체 부위 자동 마스크</label>
+
+                            <!-- 얼굴 감지 기반 -->
+                            <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                                <span style="font-size:0.78em; color:#aaa; width:60px;">얼굴 기반:</span>
+                                <button id="inpaint-face-mode-face" class="btn-secondary" style="padding:4px 10px; font-size:0.82em;" title="YOLO로 감지된 얼굴 영역">😊 얼굴</button>
+                                <button id="inpaint-face-mode-head" class="btn-secondary" style="padding:4px 10px; font-size:0.82em;" title="얼굴 + 머리카락 전체">🗣 머리</button>
+                                <button id="inpaint-body-neck"   class="btn-secondary" style="padding:4px 10px; font-size:0.82em;" title="목 ~ 쇄골 영역">목·쇄골</button>
+                                <button id="inpaint-body-chest"  class="btn-secondary" style="padding:4px 10px; font-size:0.82em;" title="가슴 영역">가슴</button>
+                                <button id="inpaint-body-waist"  class="btn-secondary" style="padding:4px 10px; font-size:0.82em;" title="허리 영역">허리</button>
+                                <button id="inpaint-body-lower"  class="btn-secondary" style="padding:4px 10px; font-size:0.82em;" title="하체(골반~허벅지)">하체</button>
+                                <button id="inpaint-body-legs"   class="btn-secondary" style="padding:4px 10px; font-size:0.82em;" title="다리 전체">다리</button>
+                                <button id="inpaint-autoface-btn" class="btn-primary"  style="padding:5px 12px; font-size:0.85em; white-space:nowrap;">🎯 얼굴 감지</button>
+                            </div>
+
+                            <!-- 비율 기반 -->
+                            <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                                <span style="font-size:0.78em; color:#aaa; width:60px;">비율 기반:</span>
+                                <button id="inpaint-zone-upper"  class="btn-secondary" style="padding:4px 10px; font-size:0.82em;" title="이미지 상단 55%">상반신</button>
+                                <button id="inpaint-zone-lower"  class="btn-secondary" style="padding:4px 10px; font-size:0.82em;" title="이미지 하단 55%">하반신</button>
+                                <button id="inpaint-zone-center" class="btn-secondary" style="padding:4px 10px; font-size:0.82em;" title="이미지 가운데 40%">중앙</button>
+                                <button id="inpaint-zone-bg"     class="btn-secondary" style="padding:4px 10px; font-size:0.82em;" title="전체 채우기">전체</button>
+                                <button id="inpaint-zone-left"   class="btn-secondary" style="padding:4px 10px; font-size:0.82em;" title="왼쪽 절반">왼쪽</button>
+                                <button id="inpaint-zone-right"  class="btn-secondary" style="padding:4px 10px; font-size:0.82em;" title="오른쪽 절반">오른쪽</button>
+                            </div>
+
+                            <!-- 커스텀 YOLO 감지 기반 -->
+                            <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                                <span style="font-size:0.78em; color:#aaa; width:60px;">AI 감지:</span>
+                                <button id="inpaint-custom-pelvis" class="btn-primary"   style="padding:5px 12px; font-size:0.85em; white-space:nowrap;" title="YOLO11 커스텀 모델로 하체/골반(Class 3,4) 감지">🎯 골반 감지</button>
+                                <button id="inpaint-custom-hands"  class="btn-secondary" style="padding:4px 10px; font-size:0.82em; white-space:nowrap;" title="손 감지">🤚 손</button>
+                                <button id="inpaint-custom-arms"   class="btn-secondary" style="padding:4px 10px; font-size:0.82em; white-space:nowrap;" title="팔 감지">💪 팔</button>
+                                <button id="inpaint-custom-feet"   class="btn-secondary" style="padding:4px 10px; font-size:0.82em; white-space:nowrap;" title="발 감지">🦶 발</button>
+                            </div>
+
+                            <span id="inpaint-face-status" style="font-size:0.8em; color:#aaa;"></span>
+                        </div>
+
+                    </div>
+                </div>
+
+                <script>
+                /** ControlNet 이미지 선택 핸들러 — IP-Adapter와 동일한 패턴 */
+                function handleControlNetImageSelect(input) {
+                    if (!input.files || input.files.length === 0) return;
+                    const file = input.files[0];
+
+                    document.getElementById('controlnet-image-name').textContent = file.name;
+                    document.getElementById('controlnet-image-clear').style.display = 'inline-block';
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = document.getElementById('controlnet-preview-img');
+                        img.src = e.target.result;
+                        document.getElementById('controlnet-preview-wrap').style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+
+                    window._controlnetUploadedName = null;
+                    document.getElementById('controlnet-upload-status').textContent = '⏳ 업로드 중...';
+
+                    if (window.uploadControlNetImage) {
+                        window.uploadControlNetImage(file).then(name => {
+                            window._controlnetUploadedName = name;
+                            document.getElementById('controlnet-upload-status').textContent = '✅ 업로드 완료';
+                            if (typeof savePresetOverride === 'function') savePresetOverride();
+                        }).catch(err => {
+                            console.error('[ControlNet] 즉시 업로드 실패:', err);
+                            document.getElementById('controlnet-upload-status').textContent = '⚠️ 업로드 실패 (생성 시 재시도됩니다)';
+                        });
+                    }
+                }
+
+                /** ControlNet 이미지 선택 초기화 */
+                function clearControlNetImage() {
+                    document.getElementById('controlnet-image-input').value = '';
+                    document.getElementById('controlnet-image-name').textContent = '선택된 파일 없음';
+                    document.getElementById('controlnet-image-clear').style.display = 'none';
+                    document.getElementById('controlnet-preview-wrap').style.display = 'none';
+                    document.getElementById('controlnet-upload-status').textContent = '';
+                    document.getElementById('controlnet-preview-img').src = '';
+                    window._controlnetUploadedName = null;
+                }
+
+                /** Inpaint 이미지 선택 핸들러 — IP-Adapter와 동일한 패턴 */
+                function handleInpaintImageSelect(input) {
+                    if (!input.files || input.files.length === 0) return;
+                    const file = input.files[0];
+
+                    document.getElementById('inpaint-image-name').textContent = file.name;
+                    document.getElementById('inpaint-image-clear').style.display = 'inline-block';
+                    // 편집 버튼 표시
+                    const paintBtn = document.getElementById('inpaint-paint-edit-btn');
+                    if (paintBtn) paintBtn.style.display = 'inline-block';
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        // 캔버스 배경 이미지 세팅
+                        const bgImg = document.getElementById('inpaint-canvas-bg');
+                        if (bgImg) {
+                            bgImg.onload = () => {
+                                const canvas = document.getElementById('inpaint-mask-canvas');
+                                if (canvas) {
+                                    canvas.width  = bgImg.naturalWidth;
+                                    canvas.height = bgImg.naturalHeight;
+                                }
+                            };
+                            bgImg.src = e.target.result;
+                        }
+                    };
+                    reader.readAsDataURL(file);
+
+                    window._inpaintUploadedName = null;
+                    document.getElementById('inpaint-upload-status').textContent = '⏳ 업로드 중...';
+
+                    if (window.uploadInpaintImage) {
+                        window.uploadInpaintImage(file).then(name => {
+                            window._inpaintUploadedName = name;
+                            document.getElementById('inpaint-upload-status').textContent = '✅ 업로드 완료';
+                            if (typeof savePresetOverride === 'function') savePresetOverride();
+                        }).catch(err => {
+                            console.error('[Inpaint] 즉시 업로드 실패:', err);
+                            document.getElementById('inpaint-upload-status').textContent = '⚠️ 업로드 실패 (생성 시 재시도됩니다)';
+                        });
+                    }
+                }
+
+                /** Inpaint 이미지 선택 초기화 */
+                function clearInpaintImage() {
+                    document.getElementById('inpaint-image-input').value = '';
+                    document.getElementById('inpaint-image-name').textContent = '선택된 파일 없음';
+                    document.getElementById('inpaint-image-clear').style.display = 'none';
+                    document.getElementById('inpaint-upload-status').textContent = '';
+                    const paintBtn = document.getElementById('inpaint-paint-edit-btn');
+                    if (paintBtn) paintBtn.style.display = 'none';
+                    window._inpaintUploadedName = null;
+                    // 캔버스 배경 및 마스크 초기화
+                    const bgImg = document.getElementById('inpaint-canvas-bg');
+                    if (bgImg) bgImg.src = '';
+                    const canvas = document.getElementById('inpaint-mask-canvas');
+                    if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+                    const maskStatus = document.getElementById('inpaint-mask-status');
+                    if (maskStatus) maskStatus.textContent = '';
+                    window._inpaintUploadedMaskName = null;
+                }
+                </script>
+
+                <script>
+                /** Img2Img 이미지 선택 핸들러 */
+                function handleImg2ImgImageSelect(input) {
+                    if (!input.files || input.files.length === 0) return;
+                    _applyImg2ImgFile(input.files[0]);
+                }
+
+                /** Img2Img 드래그 앤 드롭 핸들러 */
+                function handleImg2ImgDrop(event) {
+                    const file = event.dataTransfer.files[0];
+                    if (file && file.type.startsWith('image/')) _applyImg2ImgFile(file);
+                }
+
+                /** 공통 파일 처리: 미리보기 표시 + 서버 업로드 */
+                function _applyImg2ImgFile(file) {
+                    document.getElementById('img2img-image-name').textContent = file.name;
+                    document.getElementById('img2img-image-clear').style.display = 'inline-block';
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = document.getElementById('img2img-preview-img');
+                        img.src = e.target.result;
+                        document.getElementById('img2img-preview-wrap').style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+
+                    window._img2imgUploadedName = null;
+                    document.getElementById('img2img-upload-status').textContent = '⏳ 업로드 중...';
+
+                    if (window.uploadImg2ImgImage) {
+                        window.uploadImg2ImgImage(file).then(name => {
+                            window._img2imgUploadedName = name;
+                            document.getElementById('img2img-upload-status').textContent = '✅ 업로드 완료';
+                            if (typeof savePresetOverride === 'function') savePresetOverride();
+                        }).catch(err => {
+                            console.error('[Img2Img] 즉시 업로드 실패:', err);
+                            document.getElementById('img2img-upload-status').textContent = '⚠️ 업로드 실패 (생성 시 재시도됩니다)';
+                        });
+                    }
+                }
+
+                /** Img2Img 이미지 초기화 */
+                function clearImg2ImgImage() {
+                    document.getElementById('img2img-image-input').value = '';
+                    document.getElementById('img2img-image-name').textContent = '선택된 파일 없음';
+                    document.getElementById('img2img-image-clear').style.display = 'none';
+                    document.getElementById('img2img-preview-wrap').style.display = 'none';
+                    document.getElementById('img2img-upload-status').textContent = '업로드 대기 중';
+                    document.getElementById('img2img-preview-img').src = '';
+                    window._img2imgUploadedName = null;
+                }
+
+                /** 갤러리 컨텍스트 메뉴 → Img2Img로 보내기 */
+                window.sendToImg2ImgFromGallery = async function () {
+                    // 컨텍스트 메뉴가 열릴 때 세팅된 전역 변수 사용 (gallery.js 패턴 동일)
+                    const filename = window._contextFilename;
+                    const subfolder = window._contextSubfolder || '';
+
+                    if (!filename) return;
+
+                    // 이미생성탭으로 이동 + Img2Img 토글 켜기
+                    if (typeof openTab === 'function') openTab('tab-generate', null);
+                    const toggle = document.getElementById('toggle-img2img');
+                    if (toggle && !toggle.checked) {
+                        toggle.checked = true;
+                        toggleSubOptions('img2img-opts', toggle);
+                    }
+
+                    const statusEl = document.getElementById('img2img-upload-status');
+                    if (statusEl) statusEl.textContent = '⏳ 갤러리 이미지 불러오는 중...';
+
+                    try {
+                        const fixedSubfolder = subfolder.replace(/\\/g, '/');
+                        const url = `/view?filename=${encodeURIComponent(filename)}&type=output&subfolder=${encodeURIComponent(fixedSubfolder)}&t=${Date.now()}`;
+                        const resp = await fetch(url);
+                        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                        const blob = await resp.blob();
+                        const file = new File([blob], filename, { type: blob.type });
+                        _applyImg2ImgFile(file);
+                    } catch (e) {
+                        console.error('[Img2Img] 갤러리 이미지 로드 실패:', e);
+                        if (statusEl) statusEl.textContent = '❌ 이미지 로드 실패';
+                    }
+                };
+                </script>
+
+                <script>
+                /** IP-Adapter 이미지 선택 핸들러 — 미리보기 표시 + 즉시 서버 업로드 (새로고침 후에도 보이게 하기 위함) */
+                function handleIPAdapterImageSelect(input) {
+                    if (!input.files || input.files.length === 0) return;
+                    const file = input.files[0];
+
+                    // 파일명 표시
+                    document.getElementById('ipadapter-image-name').textContent = file.name;
+                    document.getElementById('ipadapter-image-clear').style.display = 'inline-block';
+
+                    // 미리보기 (선택 즉시 로컬에서 보여줌)
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = document.getElementById('ipadapter-preview-img');
+                        img.src = e.target.result;
+                        document.getElementById('ipadapter-preview-wrap').style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+
+                    // 이전 업로드 캐시 무효화
+                    window._ipadapterUploadedName = null;
+                    document.getElementById('ipadapter-upload-status').textContent = '⏳ 업로드 중...';
+
+                    // 선택 즉시 서버에 업로드 → 새로고침/프리셋 전환 후에도 /view로 다시 불러올 수 있게 함
+                    if (window.uploadIPAdapterImage) {
+                        window.uploadIPAdapterImage(file).then(name => {
+                            window._ipadapterUploadedName = name;
+                            document.getElementById('ipadapter-upload-status').textContent = '✅ 업로드 완료';
+                            if (typeof savePresetOverride === 'function') savePresetOverride();
+                        }).catch(err => {
+                            console.error('[IPAdapter] 즉시 업로드 실패:', err);
+                            document.getElementById('ipadapter-upload-status').textContent = '⚠️ 업로드 실패 (생성 시 재시도됩니다)';
+                        });
+                    }
+                }
+
+                /** IP-Adapter 이미지 선택 초기화 */
+                function clearIPAdapterImage() {
+                    document.getElementById('ipadapter-image-input').value = '';
+                    document.getElementById('ipadapter-image-name').textContent = '선택된 파일 없음';
+                    document.getElementById('ipadapter-image-clear').style.display = 'none';
+                    document.getElementById('ipadapter-preview-wrap').style.display = 'none';
+                    document.getElementById('ipadapter-upload-status').textContent = '';
+                    document.getElementById('ipadapter-preview-img').src = '';
+                    window._ipadapterUploadedName = null;
+                }
+                </script>
+
+                <div class="form-section">
+                    <h3>5. 후처리 옵션 (Post-Processing)</h3>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="toggle-upscale" onchange="toggleSubOptions('upscale-opts', this); if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                        <label for="toggle-upscale" style="font-weight: bold; cursor: pointer;">업스케일링 적용
+                            (Upscale)</label>
+                    </div>
+                    <div id="upscale-opts" class="sub-options" style="display: none;">
+                        <div class="option-row"><label>배율 (Scale)</label><input type="number" id="upscale-scale"
+                                step="0.5" value="1.5" min="1.0" onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();"></div>
+                        <div class="option-row" style="display:flex; align-items:center; gap: 8px;">
+                            <label style="margin:0; width: 100px;">업스케일러 모델</label>
+                            <select id="upscale-model" style="flex:1;" onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                                <option value="4x-UltraSharp.pth">4x-UltraSharp</option>
+                                <option value="ESRGAN\4x_NMKD-Siax_200k.pth">ESRGAN 4x Siax</option>
+                                <option value="ESRGAN\2x-AnimeSharpV4_Fast_RCAN_PU.safetensors">2x-AnimeSharp</option>
+                            </select>
+                        </div>
+                        <div class="option-row" style="display:flex; align-items:center; gap:8px;">
+                            <label style="margin:0; width:100px;">Upscale Steps</label>
+                            <input type="range" id="upscale-steps" min="1" max="50" value="10" style="flex:1;"
+                                oninput="document.getElementById('upscale-steps-val').innerText=this.value; if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                            <span id="upscale-steps-val" style="width:25px; text-align:right;">10</span>
+                        </div>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="toggle-detailer" onchange="toggleSubOptions('detailer-opts', this); if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                        <label for="toggle-detailer" style="font-weight: bold; cursor: pointer;">디테일러 적용
+                            (ADetailer)</label>
+                    </div>
+                    <div id="detailer-opts" class="sub-options" style="display: none;">
+                        <div class="option-row"><label><input type="checkbox" id="detailer-face-toggle" checked onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();"> 얼굴
+                                (Face)</label><select id="detailer-face-model" onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                                <option value="bbox/face_yolov8m.pt">face_yolov8m</option>
+                                <option value="bbox/face_yolov8n.pt">face_yolov8n</option>
+                                <option value="bbox/face_yolov8s.pt">face_yolov8s</option>
+                            </select></div>
+                        <div class="option-row"><label><input type="checkbox" id="detailer-eye-toggle" checked onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();"> 눈
+                                (Eyes)</label><select id="detailer-eye-model" onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                                <option value="segm/PitEyeDetailer-v2-seg.pt">PitEyeDetailer-v2</option>
+                                <option value="bbox/eyeful_v0.pt">eyeful_v0</option>
+                            </select></div>
+                        <div class="option-row"><label><input type="checkbox" id="detailer-mouth-toggle" onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();"> 입
+                                (Mouth)</label><select id="detailer-mouth-model" onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                                <option value="bbox/face_yolov8n.pt">face_yolov8n</option>
+                            </select></div>
+                        <div class="option-row"><label><input type="checkbox" id="detailer-hand-toggle" onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();"> 손
+                                (Hands)</label><select id="detailer-hand-model" onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                                <option value="bbox/hand_yolov8n.pt">hand_yolov8n</option>
+                            </select></div>
+
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="toggle-mosaic" onchange="toggleSubOptions('mosaic-opts', this); if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                        <label for="toggle-mosaic" style="font-weight: bold; cursor: pointer;">검열 적용</label>
+                    </div>
+                    <div id="mosaic-opts" class="sub-options" style="display: none;">
+                        <div style="font-size:0.9em; margin-bottom:10px; color:#aaa;">ntd11_anime_nsfw_segm 모델 전용 설정
+                        </div>
+                        <div class="option-row" style="margin-bottom: 5px; flex-wrap: wrap; gap: 8px;">
+                            <label title="nipples"><input type="checkbox" id="censor-nipples" checked onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();"> 꼭
+                                (Nipples)</label>
+                            <label title="pussy"><input type="checkbox" id="censor-pussy" checked onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();"> 보 (Pussy)</label>
+                            <label title="penis"><input type="checkbox" id="censor-penis" checked onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();"> 꼬 (Penis)</label>
+                            <label title="anus"><input type="checkbox" id="censor-anus" onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();"> 항 (Anus)</label>
+                            <label title="testicles"><input type="checkbox" id="censor-testicles" onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();"> 알 (Testicles)</label>
+                            <label title="x-ray"><input type="checkbox" id="censor-xray" onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();"> X-Ray</label>
+                            <label title="cross-section"><input type="checkbox" id="censor-cross-section" onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();"> 단면
+                                (Cross)</label>
+                        </div>
+                        <div class="option-row" style="margin-bottom: 10px;">
+                            <label style="font-weight: bold; width:80px;">검열 방식:</label>
+                            <select id="censor-mode" style="flex:1;" onchange="if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                                <option value="mosaic">모자이크 (Mosaic)</option>
+                                <option value="white">흰색 블러 (White Blur)</option>
+                                <option value="white_solid">흰색 통짜 (White Solid)</option>
+                            </select>
+                        </div>
+                        <div class="option-row" style="align-items: center;">
+                            <label style="font-weight: bold; width:80px;">검열 강도:</label>
+                            <input type="range" id="censor-intensity" min="1" max="50" value="15"
+                                style="flex:1; margin-right: 10px;"
+                                oninput="document.getElementById('censor-val').innerText=this.value; if(typeof appStateManager!=='undefined') appStateManager.debounceSave();">
+                            <span id="censor-val" style="width:25px; text-align:right;">15</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="single-mode-area">
+                    <div class="action-bar">
+                        <button class="btn-primary" onclick="generateImage()">🚀 단일 이미지 생성</button>
+                    </div>
+                </div>
+
+                <div id="batch-mode-area" style="display: none;">
+
+
+                    <!-- 작업대기열 바로 아래로 이동된 프롬프트 라이브러리 -->
+                    <div id="tab-prompt" style="margin-top: 20px; border-top: 1px solid #444; padding-top: 15px;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: #2a2a2a; border-bottom: 1px solid #444;">
+                            <h2 style="margin:0; color: #4CAF50;">프롬프트 라이브러리</h2>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn-primary" onclick="saveLibrary()">전체 저장</button>
+                                <button class="btn-secondary" onclick="exportLibrary()">내보내기</button>
+                                <button class="btn-secondary"
+                                    onclick="document.getElementById('import-input').click()">가져오기</button>
+                                <input type="file" id="import-input" style="display:none" onchange="importLibrary(this)">
+                            </div>
+                        </div>
+                        <div class="lib-wrapper" style="height: 500px;">
+                            <div class="lib-panel" id="lib-categories">
+                                <div class="panel-header">
+                                    <h3>작품 / 그룹</h3>
+                                    <button class="btn-icon-small" onclick="addWork()" title="새 작품 추가">+</button>
+                                </div>
+                                <div class="panel-list" id="work-tree" style="flex: 1; overflow-y: auto;"></div>
+                                <div class="tree-footer">
+                                    <button class="btn-secondary" onclick="addCategory()">+ 그룹 추가</button>
+                                </div>
+                            </div>
+                            <div class="lib-panel" id="lib-items">
+                                <div class="panel-header" style="justify-content: space-between;">
+                                    <h3 id="current-cat-name" style="margin:0;">조각 목록</h3>
+                                    <button class="btn-primary" id="btn-add-item" onclick="addItem()"
+                                        style="display:none; padding: 4px 10px; font-size: 0.9em;">+ 새 조각</button>
+                                </div>
+                                <div class="gallery-search" style="padding: 10px; border-bottom: 1px solid #444; background: #222;">
+                                    <input type="text" id="prompt-search-input" placeholder="이름/값/ID 검색..."
+                                        oninput="filterPromptTags()"
+                                        style="width: 100%; box-sizing: border-box; padding: 6px; background: #111; border: 1px solid #333; color: white; border-radius: 4px;">
+                                </div>
+                                <div class="panel-list" id="item-list"
+                                    style="display: flex; flex-wrap: wrap; gap: 8px; padding: 10px; align-content: flex-start; overflow-y: auto;">
+                                    <p class="empty-msg" style="width: 100%;">그룹을 선택해 주세요.</p>
+                                </div>
+                            </div>
+                            <div class="lib-panel" id="lib-builder">
+                                <div class="panel-header">
+                                    <h3>🛠️ 세트 조합</h3>
+                                    <button class="btn-secondary" style="padding: 4px 10px; font-size: 0.8em;"
+                                        onclick="clearSelectedSet()">초기화</button>
+                                </div>
+                                <div id="selected-set-view" class="panel-list">
+                                    <p class="empty-msg">조각을 선택해 보세요.</p>
+                                </div>
+                                <div class="builder-footer">
+                                    <div class="preview-box">
+                                        <strong>파일명 미리보기:</strong>
+                                        <div id="path-preview"
+                                            style="color: #4CAF50; margin-top: 5px; font-family: monospace; font-size: 0.9em; word-break: break-all;">
+                                            선택 없음</div>
+                                    </div>
+                                    <!-- 퀵생성 -->
+                                    <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
+                                        <button title="이전 구간 (대기열에 추가하지 않음)"
+                                            style="padding:5px 9px; background:#444; border:1px solid #555; border-radius:4px; color:#ccc; cursor:pointer; font-size:0.9em;"
+                                            onclick="quickSendPrev()">◀</button>
+                                        <button id="btn-quick-send" class="btn-primary" style="flex:1; background:#1565C0;" onclick="quickSendItems()" disabled>
+                                            ⚡ 퀵생성
+                                        </button>
+                                        <button title="다음 구간 (대기열에 추가하지 않음)"
+                                            style="padding:5px 9px; background:#444; border:1px solid #555; border-radius:4px; color:#ccc; cursor:pointer; font-size:0.9em;"
+                                            onclick="quickSendNext()">▶</button>
+                                        <input type="number" id="quick-send-size" value="5" min="1" max="100"
+                                            title="한 번에 전송할 조각 수"
+                                            style="width:48px; padding:5px 4px; background:#222; border:1px solid #555; color:#fff; border-radius:4px; text-align:center;"
+                                            oninput="updateQuickSendButton()">
+                                        <span style="font-size:0.8em; color:#888;">개</span>
+                                        <button title="이 그룹 퀵생성 위치 초기화"
+                                            style="padding:4px 8px; background:#555; border:none; border-radius:4px; color:#ccc; cursor:pointer; font-size:0.85em; white-space:nowrap;"
+                                            onclick="resetQuickSendOffset()">↺</button>
+                                    </div>
+                                    <button id="btn-send-set-queue" class="btn-primary" style="width: 100%;" onclick="sendSetToQueue()">
+                                        📥 이 세트를 대기열로 전송
+                                    </button>
+                                    <button class="btn-secondary" style="width: 100%; margin-top: 6px;" onclick="openRangeSendModal()">
+                                        🔢 범위 지정 전송...
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-section" style="border-color: #4CAF50;">
+                        <h3 style="color: #4CAF50;">📋 작업 대기열 (Job Queue)</h3>
+                        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
+                            <button class="btn-secondary" onclick="clearJobQueue()"
+                                style="font-size: 0.85em; padding: 4px 8px;">🗑️ 대기열 비우기</button>
+                            <label
+                                style="margin-left:auto; display:flex; align-items:center; gap:5px; font-size: 0.9em;">
+                                <span style="color:#aaa;">기본 반복 장수:</span>
+                                <input type="number" id="global-repeat-count" value="1" min="1" step="1"
+                                    onchange="if(window.appStateManager) window.appStateManager.debounceSave()"
+                                    style="width: 50px; padding: 3px; border-radius: 4px; border: 1px solid #555; background: #222; color: #fff; text-align: center;">
+                            </label>
+                        </div>
+
+                        <div class="form-group"
+                            style="margin-bottom: 20px; background: #1e1e1e; padding: 12px; border-radius: 6px; border: 1px solid #333;">
+                            <label style="color: #4CAF50; margin-bottom: 8px; display: block;">📁 출력 경로/파일명 템플릿</label>
+                            <input type="text" id="path-template" value="[캐릭터]/[의상]_[상황]" placeholder="예: [카테고리명]/파일명">
+                            <p style="font-size: 0.75em; color: #888; margin-top: 8px; line-height: 1.4;">
+                                💡 대괄호 <b>[그룹명]</b>을 적으면 선택된 조각의 이름으로 자동 치환됩니다.<br>
+                                예: <b>[캐릭터]/[의상]</b> → <b>엘프/교복_001.png</b>
+                            </p>
+                        </div>
+
+                        <div id="job-queue-list"
+                            style="background: #1e1e1e; padding: 15px; border-radius: 8px; border: 1px solid #444; min-height: 150px; max-height: 400px; overflow-y: auto;">
+                            <p style="text-align: center; color: #666; margin: 0;">대기열이 비어 있습니다.</p>
+                        </div>
+                    </div>
+                    <div class="action-bar">
+                        <button class="btn-primary" id="btn-start-batch" style="background: #2196F3;" onclick="startBatchGeneration()">🚀 큐
+                            전체 순차 생성 시작</button>
+                        <button class="btn-secondary" id="btn-start-batch-repeat" style="border-color:#2196F3; color:#2196F3;" onclick="startBatchGenerationRepeatedPrompt()">🔁 반복출력</button>
+                    </div>
+                </div>
+            </div> <!-- End of gen-left -->
+
+            <div id="gen-resizer" class="gen-resizer"></div>
+
+            <div id="gen-right" class="gen-right" style="display: flex; flex-direction: column; height: 100%;">
+
+                <!-- 상단: 실시간 라이브 뷰어 (Phase 11) -->
+                <div id="live-preview-container"
+                    style="flex: 2; padding: 15px; border-bottom: 2px solid #333; display: flex; flex-direction: column;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3 style="margin: 0; color: #FF9800;">📡 실시간 렌더링 뷰어</h3>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span id="live-status-text" style="color: #888; font-size: 0.9em; font-weight: bold;">대기
+                                중...</span>
+                            <button id="btn-stop-generation" class="btn-secondary"
+                                style="background:#b71c1c; border:1px solid #d32f2f; color:#fff; font-weight:bold; padding:4px 10px; font-size:0.85em;"
+                                onclick="stopGeneration()" title="현재 진행 중인 생성을 중지하고 배치 큐를 멈춤">⏹ 생성중지</button>
+                            <button id="diag-quick-btn" class="collapse-toggle-btn" onclick="if (typeof openAmDiagQuick === 'function') openAmDiagQuick();" title="진단: 눈에 띄는 문제 없음 (클릭하면 상태 점검)">🩺 진단</button>
+                            <button id="node-log-toggle" class="collapse-toggle-btn" onclick="toggleNodeLogPanel()" title="실행 로그 패널 접기/펼치기">📋 로그 ▼</button>
+                            <button class="collapse-toggle-btn" id="live-preview-toggle" onclick="toggleLivePreview()">▼
+                                펼치기</button>
+                        </div>
+                    </div>
+
+                    <div id="progress-container"
+                        style="display: none; margin-bottom: 15px; background: #2a2a2a; padding: 10px; border-radius: 6px; border: 1px solid #444;">
+                        <div
+                            style="width: 100%; background: #111; border-radius: 4px; overflow: hidden; height: 16px; border: 1px solid #333;">
+                            <div id="progress-bar"
+                                style="width: 0%; height: 100%; background: linear-gradient(90deg, #FF9800, #FFC107); transition: width 0.1s;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="live-preview-row" style="flex: 1; display: flex; gap: 10px; min-height: 0;">
+                        <div id="live-preview-body"
+                            style="flex: 1; background: #111; border-radius: 8px; border: 1px dashed #555; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
+                            <!-- 초기 플레이스홀더 -->
+                            <div id="live-preview-placeholder" style="color: #444; text-align: center;">
+                                <div style="font-size: 3em; margin-bottom: 10px;">📺</div>
+                                <div>렌더링이 시작되면 여기에 표시됩니다.</div>
+                            </div>
+                            <!-- 실제 WebSocket Binary가 꽂힐 img -->
+                            <img id="live-preview-img" src="" alt="Live Preview"
+                                style="display: none; width: 100%; height: 100%; object-fit: contain; position: absolute; top: 0; left: 0;">
+                        </div>
+
+                        <!-- 노드 실행 로그 패널 -->
+                        <div id="node-log-panel"
+                            style="width: 220px; flex-shrink: 0; background: #1a1a1a; border-radius: 8px; border: 1px solid #444; overflow-y: auto; padding: 8px; font-size: 0.78em; font-family: 'Consolas', monospace; color: #999; display: flex; flex-direction: column; gap: 3px;">
+                            <div id="node-log-placeholder" style="color: #555; text-align: center; margin-top: 10px;">실행 로그가<br>여기에 표시됩니다</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 하단: 기존 생성 기록(History) -->
+                <div id="history-container" style="flex: 1; padding: 15px; overflow-y: auto;">
+                    <h3
+                        style="margin-top: 0; color: #4CAF50; border-bottom: 1px solid #444; padding-bottom: 10px; font-size: 1.1em; position: sticky; top: -15px; background: #1e1e1e; z-index: 5;">
+                        📜 최근 생성 기록
+                    </h3>
+                    <div id="history-stack" style="display: flex; flex-direction: column; gap: 10px;">
+                        <p style="font-size: 0.85em; color: #666; text-align: center; margin-top: 20px;">아직 생성된 이미지가
+                            없습니다.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div id="tab-gallery" class="tab-panel">
+            <div class="gallery-layout">
+                <div class="gallery-left lib-panel">
+                    <div class="panel-header">
+                        <h3 style="margin:0;">📁 세트 모음</h3>
+                    </div>
+                    <div class="gallery-search" style="padding: 10px; border-bottom: 1px solid #444;">
+                        <input type="text" id="gallery-search-input" placeholder="세트명(폴더명) 검색..."
+                            oninput="filterGalleryFolders(this.value)"
+                            style="width: 100%; box-sizing: border-box; padding: 6px; background: #111; border: 1px solid #333; color: white; border-radius: 4px;">
+                    </div>
+                    <div class="panel-list" id="gallery-folder-list" style="height: calc(100% - 93px);">
+                        <p class="empty-msg">데이터 로딩 중...</p>
+                    </div>
+                </div>
+
+                <div class="gallery-right lib-panel">
+                    <div class="panel-header" style="justify-content: space-between;">
+                        <h3 id="current-gallery-title" style="margin:0; color: #4CAF50;">전체 이미지</h3>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span id="gallery-selection-info" style="font-size: 0.9em; color: #aaa;">선택됨: 0</span>
+                            <!-- 🐛 수정: gallery.js가 DOMContentLoaded에서 이 id로 클릭 리스너를 걸어놓고
+                                 있었는데 버튼 자체가 없어서 죽어있던 기능 — 버튼만 추가(JS는 수정 없음) -->
+                            <button class="btn-secondary" id="gallery-select-all" style="padding: 6px 12px; font-size: 0.9em;"
+                                title="현재 보이는 이미지를 전체 선택/해제">☑️ 전체 선택</button>
+                            <button class="btn-primary" style="padding: 6px 12px; font-size: 0.9em;"
+                                onclick="deleteSelectedGalleryImages()">🗑️ 선택 삭제</button>
+                            <button class="btn-secondary"
+                                style="color: #ff5555; border-color: #ff5555; padding: 6px 12px; font-size: 0.9em;"
+                                onclick="deleteAllGalleryImagesInView()">모두 삭제</button>
+                        </div>
+                    </div>
+                    <div class="gallery-grid" id="gallery-grid">
+                        <!-- 이미지 생성 결과가 여기에 타일 형태로 -->
+                    </div>
+                    <!-- Selection Box Overlay -->
+                    <div id="gallery-selection-box"
+                        style="display: none; position: absolute; border: 1px solid rgba(76, 175, 80, 0.8); background: rgba(76, 175, 80, 0.2); pointer-events: none; z-index: 100;">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-settings" class="tab-panel">
+            <h2>⚙️ 환경 설정</h2>
+        </div>
+
+        <div id="tab-tools-metadata" class="tab-panel">
+            <div style="padding: 20px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box;">
+                <h2>🛠️ 단독 메타데이터 뷰어</h2>
+                <p style="color: #aaa; margin-top: -10px;">ComfyUI에서 생성된 이미지를 아래 영역에 끌어다 놓으면 내포된 프롬프트 설정값(PNG Info)을 즉시
+                    분석합니다.</p>
+
+                <div id="metadata-dropzone"
+                    style="flex: 1; border: 3px dashed #4CAF50; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #888; transition: background-color 0.2s, min-height 0.2s; min-height: 200px; margin-bottom: 20px;">
+                    <div style="font-size: 3em; margin-bottom: 10px;">📥</div>
+                    <div style="font-size: 1.2em;">여기에 이미지를 드롭하세요</div>
+                    <div style="font-size: 0.9em; margin-top: 5px;">(또는 클릭하여 파일 선택)</div>
+                    <input type="file" id="metadata-file-input" accept="image/png, image/webp" style="display: none;">
+                </div>
+
+                <div id="standalone-metadata-result"
+                    style="display: none; flex: 2; flex-direction: column; overflow-y: auto; background: #1a1a1a; padding: 15px; border-radius: 8px; border: 1px solid #333;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #444;">
+                        <h3 style="margin: 0; color: #4CAF50;">분석 결과</h3>
+                        <button class="btn-primary" id="btn-standalone-send-gen"
+                            style="display: none; padding: 6px 15px;">🪄 이 설정으로 생성 (Send to Generate)</button>
+                    </div>
+                    <!-- 결과 텍스트가 채워질 컨테이너 (기존 모달 바디 재활용 형태) -->
+                    <div id="standalone-metadata-body" style="flex: 1; overflow-y: auto;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-tools-censor" class="tab-panel">
+            <div style="padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; height: 100%;">
+                <h2 style="margin-top: 0; color: #4CAF50;">🔍 단독 이미지 검열기 (Stand-alone Censor)</h2>
+                <p style="color: #ccc; margin-top: -10px; margin-bottom: 20px;">기존 이미지 파일을 끌어다 놓아 빠르게 검열(모자이크/블러) 처리합니다.
+                </p>
+
+                <div style="display: flex; gap: 20px; flex: 1; min-height: 0;">
+
+                    <!-- 좌측 패널 (업로드 & 결과 뷰어) -->
+                    <div
+                        style="flex: 1; display: flex; flex-direction: column; background: #1e1e1e; border-radius: 10px; overflow: hidden; border: 1px solid #333; position: relative;">
+                        <!-- 업로드/미리보기 드롭존 -->
+                        <div id="censor-dropzone"
+                            style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; border: 3px dashed #555; margin: 15px; border-radius: 8px; cursor: pointer; transition: 0.2s;">
+                            <input type="file" id="censor-file-input" accept="image/jpeg, image/png, image/webp"
+                                multiple style="display: none;">
+                            <div id="censor-drop-placeholder" style="text-align: center; color: #888;">
+                                <div style="font-size: 3em; margin-bottom: 10px;">📸</div>
+                                <div style="font-size: 1.2em;">여기에 이미지를 드롭하세요</div>
+                                <div style="font-size: 0.9em; margin-top: 5px;">(또는 클릭하여 파일 선택)</div>
+                            </div>
+                            <!-- 원본 미리보기 이미지 (진행 중이거나 슬라이더 사용 전) -->
+                            <img id="censor-preview-img"
+                                style="display: none; max-width: 100%; max-height: 100%; object-fit: contain; position: absolute; top:0; left:0; right:0; bottom:0; padding:10px; box-sizing: border-box; pointer-events: none;" />
+                        </div>
+
+                        <!-- 슬라이더 비교 뷰 및 캔버스 덧칠 영역 (완료 후 활성화) -->
+                        <div id="censor-detail-view"
+                            style="display: none; flex: 1; margin: 15px; background: #222; border-radius: 8px; flex-direction: column; position: relative;">
+                            <!-- 브러쉬 툴바 -->
+                            <div id="censor-brush-toolbar"
+                                style="display: flex; gap: 10px; margin-bottom: 10px; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 6px; align-items: center; z-index: 10;">
+                                <button class="btn-secondary" id="btn-brush-color"
+                                    style="padding: 2px 8px; font-size: 0.9em; display: flex; align-items: center; gap: 5px;"
+                                    onclick="document.getElementById('censor-brush-color-picker').click()">
+                                    <div id="brush-color-preview"
+                                        style="width: 14px; height: 14px; background: #ffffff; border: 1px solid #ccc; border-radius: 50%;">
+                                    </div> 색상
+                                </button>
+                                <input type="color" id="censor-brush-color-picker" value="#ffffff"
+                                    style="display: none;">
+
+                                <label style="font-size: 0.9em; display: flex; align-items: center; gap: 5px;">크기
+                                    <input type="range" id="censor-brush-size" min="1" max="100" value="20"
+                                        style="width: 60px;"></label>
+
+                                <label style="font-size: 0.9em; display: flex; align-items: center; gap: 5px;"><input
+                                        type="checkbox" id="censor-brush-eraser"> 지우개</label>
+                                <div style="flex: 1;"></div>
+                                <button class="btn-secondary" style="padding: 2px 8px; font-size: 0.9em;"
+                                    data-help="censorClearCanvas" onclick="clearCensorCanvas()">초기화</button>
+                                <button class="btn-primary" style="padding: 2px 8px; font-size: 0.9em;"
+                                    data-help="censorSaveRetouch" onclick="saveRetouchedImage()">💾 병합 저장</button>
+                            </div>
+                            <!-- 비교 뷰어 컨테이너 -->
+                            <div id="censor-compare-container"
+                                style="position: relative; flex: 1; overflow: hidden; display: flex; align-items: center; justify-content: center; user-select: none;">
+                                <div id="censor-image-wrapper"
+                                    style="position: relative; max-width: 100%; max-height: 100%; display: inline-block;">
+                                    <!-- After (검열 후 이미지) -->
+                                    <img id="censor-img-after"
+                                        style="display: block; max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; z-index: 1;">
+
+                                    <!-- Before (원본 이미지 - 덧칠 캔버스 아래 위치, slider에 의해 clip-path 적용) -->
+                                    <img id="censor-img-before"
+                                        style="position: absolute; top:0; left:0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; z-index: 2; clip-path: polygon(0 0, 50% 0, 50% 100%, 0% 100%);">
+
+                                    <!-- 덧칠 캔버스 레이어 -->
+                                    <canvas id="censor-retouch-canvas"
+                                        style="position: absolute; top:0; left:0; width: 100%; height: 100%; cursor: crosshair; z-index: 8; touch-action: none;"></canvas>
+
+                                    <!-- 슬라이더 핸들 -->
+                                    <div id="censor-compare-slider"
+                                        style="position: absolute; top: 0; bottom: 0; width: 4px; background: white; cursor: ew-resize; left: 50%; transform: translateX(-50%); z-index: 15; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
+                                        <div
+                                            style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; background: white; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">
+                                            <div style="width: 2px; height: 10px; background: #555; margin: 0 1px;">
+                                            </div>
+                                            <div style="width: 2px; height: 10px; background: #555; margin: 0 1px;">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 상태 바 -->
+                        <div
+                            style="background: #111; padding: 10px 15px; border-top: 1px solid #333; display: flex; align-items: center; justify-content: space-between;">
+                            <span id="censor-status-text"
+                                style="color: #aaa; font-size: 0.9em; font-weight: bold;">준비됨</span>
+                            <div
+                                style="flex: 1; background: #222; border-radius: 4px; overflow: hidden; height: 10px; margin-left: 15px;">
+                                <div id="censor-progress-bar"
+                                    style="width: 0%; height: 100%; background: linear-gradient(90deg, #FF9800, #FFC107); transition: width 0.1s;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 다중 썸네일 대기열 뷰 -->
+                        <div id="censor-queue-container"
+                            style="height: 100px; background: #151515; border-top: 1px solid #333; display: flex; align-items: center; padding: 10px; overflow-x: auto; gap: 10px; box-sizing: border-box;">
+                            <span id="censor-queue-empty-msg" style="color: #666; font-size: 0.9em; margin: auto;">대기열이
+                                비어 있습니다.</span>
+                        </div>
+                    </div>
+
+                    <!-- 우측 패널 (옵션 설정) -->
+                    <div
+                        style="flex: 1; background: #1a1a1a; padding: 20px; border-radius: 10px; border: 1px solid #333; display: flex; flex-direction: column; gap: 15px;">
+                        <div class="form-section" style="border-color: #2196F3; margin: 0; padding: 15px;">
+                            <h3 style="color: #2196F3; margin-top:0;">1. 타겟 부위 (Target Segments)</h3>
+                            <div class="option-row" style="flex-wrap: wrap; gap: 10px; display: flex;">
+                                <label><input type="checkbox" id="tool-censor-nipples" checked> 꼭 (Nipples)</label>
+                                <label><input type="checkbox" id="tool-censor-pussy" checked> 보 (Pussy)</label>
+                                <label><input type="checkbox" id="tool-censor-penis" checked> 꼬 (Penis)</label>
+                                <label><input type="checkbox" id="tool-censor-anus"> 항 (Anus)</label>
+                                <label><input type="checkbox" id="tool-censor-testicles"> 알 (Testicles)</label>
+                                <label><input type="checkbox" id="tool-censor-xray"> X-Ray</label>
+                                <label><input type="checkbox" id="tool-censor-cross-section"> 단면 (Cross)</label>
+                            </div>
+                        </div>
+
+                        <div class="form-section" style="border-color: #ff9800; margin: 0; padding: 15px;">
+                            <h3 style="color: #ff9800; margin-top:0;">2. 검열 스타일 (Style)</h3>
+                            <div class="option-row" style="margin-bottom: 15px;">
+                                <label style="font-weight: bold; width:100px;">검열 방식:</label>
+                                <select id="tool-censor-mode" style="flex:1;">
+                                    <option value="mosaic">모자이크 (Mosaic)</option>
+                                    <option value="white">흰색 블러 막 (White Blur)</option>
+                                    <option value="white_solid">흰색 단색 (White Solid)</option>
+                                </select>
+                            </div>
+                            <div class="option-row" style="align-items: center;">
+                                <label style="font-weight: bold; width:100px;">검열 강도:</label>
+                                <input type="range" id="tool-censor-intensity" min="1" max="50" value="15"
+                                    style="flex:1; margin-right: 15px;"
+                                    oninput="document.getElementById('tool-censor-val').innerText=this.value">
+                                <span id="tool-censor-val"
+                                    style="width:30px; text-align:right; font-weight:bold;">15</span>
+                            </div>
+                            <p style="font-size: 0.8em; color: #888; line-height: 1.4; margin-top: 15px;">* 강도가 높을수록
+                                모자이크 타일
+                                크기가 커지거나 블러 범위가 넓어집니다.</p>
+                        </div>
+
+                        <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
+                            <button class="btn-primary" style="background: #2196F3; font-size: 1.1em; padding: 12px;"
+                                data-help="censorRunPipeline" onclick="runStandaloneCensor()">🚀 대기열 검열 파이프라인 가동</button>
+                            <button class="btn-secondary"
+                                style="font-size: 1em; padding: 10px; font-weight: bold; background: #333;"
+                                data-help="censorDownloadZip" onclick="downloadCensorZip()">📦 전체 완료본 ZIP 다운로드</button>
+                            <button class="btn-secondary" style="font-size: 0.9em; padding: 8px;"
+                                data-help="censorResetTool" onclick="resetCensorTool()">↺ 큐 초기화 (비우기)</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        <div id="tab-tools-resizer" class="tab-panel">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 15px;">
+                <h2 style="margin: 0;">✂️ 원클릭 이미지 변환기 (Quick Resizer)</h2>
+            </div>
+            <div style="display: flex; gap: 20px; height: calc(100vh - 120px);">
+
+                <!-- 좌측 패널 (드롭존 & 대기열) -->
+                <div style="flex: 2; display: flex; flex-direction: column; gap: 15px;">
+                    <!-- 드롭존 구역 -->
+                    <div id="resizer-dropzone"
+                        style="flex: 1; border: 2px dashed #555; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: transparent; cursor: pointer; transition: 0.2s; position: relative; overflow: hidden; flex-direction: column;">
+                        <input type="file" id="resizer-file-input" accept="image/*" multiple style="display: none;">
+                        <div id="resizer-drop-placeholder" style="text-align: center; color: #888;">
+                            <div style="font-size: 3em; margin-bottom: 10px;">✂️</div>
+                            <h3>이미지를 이곳에 드래그하거나<br>클릭하여 파일을 선택하세요.</h3>
+                            <p style="font-size: 0.9em;">(여러 장 다중 선택/드롭 가능)</p>
+                        </div>
+                    </div>
+
+                    <!-- 상태 바 -->
+                    <div
+                        style="background: #111; padding: 10px 15px; border-top: 1px solid #333; display: flex; align-items: center; justify-content: space-between;">
+                        <span id="resizer-status-text"
+                            style="color: #aaa; font-size: 0.9em; font-weight: bold;">준비됨</span>
+                        <div
+                            style="flex: 1; background: #222; border-radius: 4px; overflow: hidden; height: 10px; margin-left: 15px;">
+                            <div id="resizer-progress-bar"
+                                style="width: 0%; height: 100%; background: linear-gradient(90deg, #9C27B0, #E040FB); transition: width 0.1s;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 다중 썸네일 대기열 뷰 -->
+                    <div id="resizer-queue-container"
+                        style="height: 100px; background: #151515; border-top: 1px solid #333; display: flex; align-items: center; padding: 10px; overflow-x: auto; gap: 10px; box-sizing: border-box;">
+                        <span id="resizer-queue-empty-msg" style="color: #666; font-size: 0.9em; margin: auto;">대기열이 비어
+                            있습니다.</span>
+                    </div>
+                </div>
+
+                <!-- 우측 패널 (옵션 설정) -->
+                <div
+                    style="flex: 1; background: #1a1a1a; padding: 20px; border-radius: 10px; border: 1px solid #333; display: flex; flex-direction: column; gap: 15px;">
+
+                    <div class="form-section" style="border-color: #9C27B0; margin: 0; padding: 15px;">
+                        <h3 style="color: #9C27B0; margin-top:0;">1. 리사이즈 (Resize)</h3>
+                        <div class="option-row" style="margin-bottom: 15px;">
+                            <label style="font-weight: bold; width:100px;">방식:</label>
+                            <select id="resizer-mode" style="flex:1;" onchange="toggleResizerInputs()">
+                                <option value="none">원본 해상도 유지</option>
+                                <option value="scale">비율(%) 축소</option>
+                                <option value="longest">긴 축 기준 (Longest Edge)</option>
+                                <option value="exact">강제 해상도 지정 (WxH)</option>
+                            </select>
+                        </div>
+
+                        <div id="resizer-inputs-scale" class="option-row" style="align-items: center; display: none;">
+                            <label style="font-weight: bold; width:100px;">스케일(%):</label>
+                            <input type="number" id="resizer-val-scale" value="50" min="1" max="200" style="flex:1;">
+                        </div>
+                        <div id="resizer-inputs-longest" class="option-row" style="align-items: center; display: none;">
+                            <label style="font-weight: bold; width:100px;">픽셀(px):</label>
+                            <input type="number" id="resizer-val-longest" value="1024" min="1" style="flex:1;">
+                        </div>
+                        <div id="resizer-inputs-exact" class="option-row"
+                            style="align-items: center; display: none; gap: 10px;">
+                            <label style="font-weight: bold; width:100px;">W x H:</label>
+                            <input type="number" id="resizer-val-width" value="512" min="1" style="flex:1;"
+                                placeholder="가로">
+                            <span>x</span>
+                            <input type="number" id="resizer-val-height" value="512" min="1" style="flex:1;"
+                                placeholder="세로">
+                        </div>
+                    </div>
+
+                    <div class="form-section" style="border-color: #03A9F4; margin: 0; padding: 15px;">
+                        <h3 style="color: #03A9F4; margin-top:0;">2. 포맷 (Format & Quality)</h3>
+                        <div class="option-row" style="margin-bottom: 15px;">
+                            <label style="font-weight: bold; width:100px;">출력 포맷:</label>
+                            <select id="resizer-format" style="flex:1;" onchange="toggleResizerQuality()">
+                                <option value="webp">WEBP (추천)</option>
+                                <option value="jpeg">JPEG</option>
+                                <option value="png">PNG (무손실)</option>
+                            </select>
+                        </div>
+                        <div id="resizer-quality-container" class="option-row" style="align-items: center;">
+                            <label style="font-weight: bold; width:100px;">압축 품질:</label>
+                            <input type="range" id="resizer-quality" min="1" max="100" value="85"
+                                style="flex:1; margin-right: 15px;"
+                                oninput="document.getElementById('resizer-quality-str').innerText=this.value">
+                            <span id="resizer-quality-str"
+                                style="width:30px; text-align:right; font-weight:bold;">85</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
+                        <button class="btn-primary" style="background: #9C27B0; font-size: 1.1em; padding: 12px;"
+                            data-help="resizerRunBatch" onclick="runStandaloneResizer()">⚡ 대기열 일괄 변환 시작</button>
+                        <button class="btn-secondary"
+                            style="font-size: 1em; padding: 10px; font-weight: bold; background: #333;"
+                            data-help="resizerDownloadZip" onclick="downloadResizerZip()">📦 완료본 ZIP 다운로드</button>
+                        <button class="btn-secondary" style="font-size: 0.9em; padding: 8px;"
+                            data-help="resizerResetTool" onclick="resetResizerTool()">↺ 큐 초기화 (비우기)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🔢 조각 번호표/대조: 그룹별로 몇 번에 어떤 조각이 있는지(이름만) 확인/수정하고, "(사과,딸기,바나나)" 목록과 번호 순서대로 대조.
+             화면 내용은 library.js의 renderNumCheckTool()이 #numcheck-root 안에 그린다. -->
+        <div id="tab-tools-numcheck" class="tab-panel">
+            <div style="padding: 20px;">
+                <div id="numcheck-root"></div>
+            </div>
+        </div>
+
+        <!-- 🔎 프롬프트 특수 검색: 프롬프트가 있으면 🟢 없으면 🔴, 불을 클릭하면 추가/제거. 내용은 library.js의 renderPSearchTool()이 #psearch-root에 그린다. -->
+        <div id="tab-tools-psearch" class="tab-panel">
+            <div style="padding: 20px;">
+                <div id="psearch-root"></div>
+            </div>
+        </div>
+
+        <!-- 🩺 에셋매니저 진단: generate.js의 블랙박스 기록기(window.amDiag) + 서버 점검으로 막힌 곳을 추정. 내용은 renderAmDiagTool()이 #diag-root에 그린다. -->
+        <div id="tab-tools-diag" class="tab-panel">
+            <div style="padding: 20px;">
+                <div id="diag-root"></div>
+            </div>
+        </div>
+
+
+        <!-- 🧩 워크플로우 이미지 실행: 다른 사람이 만든 워크플로우가 들어 있는 이미지/.json을 이 ComfyUI에서 그대로 실행. 내용은 library.js의 renderWfRunTool()이 #wfrun-root에 그린다. -->
+        <div id="tab-tools-wfrun" class="tab-panel">
+            <div style="padding: 20px;">
+                <div id="wfrun-root"></div>
+            </div>
+        </div>
+
+        <!-- 🆕 NAI Director 도구 (선화 추출/스케치 채색/감정 변경/배경 제거/정리) — 한 장씩 처리하는 독립 도구.
+             기존 검열기/리사이저처럼 대기열 일괄처리 엔진 재사용은 안 하고, 이 도구만의 완전히 새로운 코드로 작성함. -->
+        <div id="tab-tools-nai-director" class="tab-panel">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #444; padding-bottom:10px; margin-bottom:15px;">
+                <h2 style="margin:0;">🎬 NAI Director 도구</h2>
+            </div>
+            <p style="font-size:0.85em; color:#888; margin:0 0 15px;">
+                NovelAI의 "Director Tools"(augment-image API)를 이용해 이미지를 한 장씩 변환합니다.
+                선화 추출/스케치 채색/감정 변경/배경 제거/배경 정리 중 하나를 고르고 실행하면, 생성 탭과 마찬가지로
+                결과가 output/nai 폴더에 저장됩니다. 생성마다 Anlas가 소모됩니다.
+            </p>
+            <div style="display:flex; gap:20px; height: calc(100vh - 180px);">
+                <!-- 좌측: 원본 업로드 + 미리보기 -->
+                <div style="flex:1; display:flex; flex-direction:column; gap:12px;">
+                    <label>원본 이미지</label>
+                    <div id="nai-director-dropzone" data-help="nai-director-dropzone"
+                        style="flex:1; border:2px dashed #555; border-radius:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative; overflow:hidden;"
+                        onclick="document.getElementById('nai-director-file').click()"
+                        ondragover="event.preventDefault(); this.style.borderColor='#4CAF50';"
+                        ondragleave="this.style.borderColor='#555';"
+                        ondrop="event.preventDefault(); this.style.borderColor='#555'; handleNaiDirectorFile(event.dataTransfer.files[0]);">
+                        <input type="file" id="nai-director-file" accept="image/png,image/jpeg,image/webp" style="display:none;"
+                            onchange="handleNaiDirectorFile(this.files[0])">
+                        <div id="nai-director-placeholder" style="text-align:center; color:#888;">
+                            <div style="font-size:2.5em; margin-bottom:8px;">🎬</div>
+                            <p>클릭하거나 이미지를 끌어다 놓으세요</p>
+                        </div>
+                        <img id="nai-director-preview" style="display:none; max-width:100%; max-height:100%; object-fit:contain;">
+                    </div>
+                </div>
+
+                <!-- 우측: 옵션 + 실행 + 결과 -->
+                <div style="flex:1; background:#1a1a1a; padding:20px; border-radius:10px; border:1px solid #333; display:flex; flex-direction:column; gap:12px; overflow-y:auto;">
+                    <div class="form-group" style="margin:0;">
+                        <label>NAI API 토큰</label>
+                        <input type="password" id="nai-director-token" placeholder="비워두면 생성 탭의 토큰을 그대로 사용"
+                            data-help="nai-director-token">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label>도구 선택</label>
+                        <select id="nai-director-type" data-help="nai-director-type" onchange="toggleNaiDirectorPromptRow()">
+                            <option value="lineart">선화 추출 (Line Art)</option>
+                            <option value="sketch">스케치화 (Sketch)</option>
+                            <option value="colorize">스케치 채색 (Colorize)</option>
+                            <option value="emotion">표정/감정 변경 (Emotion)</option>
+                            <option value="bg-removal">배경 제거 (BG Removal)</option>
+                            <option value="declutter">배경 정리 (Declutter)</option>
+                            <option value="upscale">⬆️ 업스케일 (무료, Anlas 안 듦)</option>
+                        </select>
+                    </div>
+                    <div id="nai-director-upscale-row" style="display:none;">
+                        <label style="font-weight:normal;">배율:</label>
+                        <select id="nai-director-upscale-scale" style="width:auto;">
+                            <option value="4" selected>4배</option>
+                            <option value="2">2배</option>
+                        </select>
+                    </div>
+                    <div id="nai-director-prompt-row" style="display:none;">
+                        <div class="form-group" style="margin:0;">
+                            <label data-help="nai-director-prompt">
+                                <span id="nai-director-prompt-label">채색 지시 프롬프트</span> (선택)
+                            </label>
+                            <input type="text" id="nai-director-prompt" placeholder="예: colorize, blue eyes, pink hair (감정 변경은 예: happy, smile)">
+                        </div>
+                        <div class="form-group" style="margin:8px 0 0;">
+                            <label style="font-weight:normal;" data-help="nai-director-defry">디프라이(Defry, 원본 반영 정도 — 낮을수록 원본 선/구도를 더 따름): <span id="nai-director-defry-val">0</span></label>
+                            <input type="range" id="nai-director-defry" min="0" max="5" step="1" value="0"
+                                oninput="document.getElementById('nai-director-defry-val').textContent=this.value">
+                        </div>
+                    </div>
+                    <button type="button" class="btn-primary" style="background:#00BCD4; font-size:1.05em; padding:12px;"
+                        data-help="nai-director-run" onclick="runNaiDirectorTool()">🚀 실행</button>
+                    <div id="nai-director-status" style="font-size:0.85em; color:#4CAF50;"></div>
+                    <div style="flex:1; min-height:0; display:flex; flex-direction:column;">
+                        <label>결과</label>
+                        <div style="flex:1; background:#111; border:1px solid #333; border-radius:8px; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                            <img id="nai-director-result" style="display:none; max-width:100%; max-height:100%; object-fit:contain;">
+                            <span id="nai-director-result-empty" style="color:#555; font-size:0.85em;">아직 결과 없음</span>
+                        </div>
+                        <a id="nai-director-download" style="display:none; margin-top:8px;" class="btn-secondary" download>📥 결과 다운로드</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 작품/그룹 수정 모달 -->
+    <div id="work-edit-modal" class="modal-overlay" style="display:none;"
+        onclick="if(event.target===this) closeWorkEditModal()">
+        <div class="modal-content" style="width: 400px;" onclick="event.stopPropagation()">
+            <h3 id="work-edit-modal-title" style="color: #4CAF50; margin-top: 0;">작품 수정</h3>
+            <input type="hidden" id="work-edit-type">
+            <input type="hidden" id="work-edit-original-id">
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;">
+                <label style="font-size: 0.9em; color: #aaa;">ID (고유 식별자)</label>
+                <input type="text" id="work-edit-id" class="inline-input" placeholder="고유 ID">
+                <label style="font-size: 0.9em; color: #aaa;">이름</label>
+                <input type="text" id="work-edit-name" class="inline-input" placeholder="표시 이름">
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn-secondary" onclick="closeWorkEditModal()">취소</button>
+                <button class="btn-primary" onclick="saveWorkEditModal()">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 라이브러리 컨텍스트 메뉴 -->
+    <div id="lib-context-menu" class="lib-context-menu"></div>
+
+    <script src="/assetmanager/static/js/component_metadata.js"></script>
+    <script src="/assetmanager/static/js/state_manager.js"></script>
+    <script src="/assetmanager/static/js/api.js"></script>
+    <script src="/assetmanager/static/js/ui_manager.js"></script>
+    <script>
+    /* SD3 UNet 드롭다운 — gen-unet과 동일한 options 미러링
+       ui_manager가 gen-unet을 채운 뒤 MutationObserver로 동기화 */
+    (function mirrorSd3UnetDropdown() {
+        function syncSd3Unet() {
+            const src  = document.getElementById('gen-unet');
+            const dest = document.getElementById('gen-sd3-unet');
+            if (!src || !dest || src.options.length === 0) return;
+            const savedVal = dest.value;
+            dest.innerHTML = src.innerHTML;
+            if (savedVal && dest.querySelector(`option[value="${CSS.escape(savedVal)}"]`)) {
+                dest.value = savedVal;
+            }
+        }
+        const src = document.getElementById('gen-unet');
+        if (src) {
+            const obs = new MutationObserver(syncSd3Unet);
+            obs.observe(src, { childList: true });
+        }
+        window.addEventListener('DOMContentLoaded', syncSd3Unet);
+    })();
+    </script>
+    <script src="/assetmanager/static/js/library.js"></script>
+    <script src="/assetmanager/static/js/pipeline/pipeline_upscaler.js"></script>
+    <script src="/assetmanager/static/js/pipeline/pipeline_detailer.js"></script>
+    <script src="/assetmanager/static/js/pipeline/pipeline_censor.js"></script>
+    <script src="/assetmanager/static/js/pipeline/pipeline_ipadapter.js"></script>
+    <script src="/assetmanager/static/js/pipeline/pipeline_controlnet.js"></script>
+    <script src="/assetmanager/static/js/pipeline/pipeline_inpaint.js"></script>
+    <script src="/assetmanager/static/js/pipeline/pipeline_img2img.js"></script>
+    <script src="/assetmanager/static/js/pipeline/pipeline_facedetect.js"></script>
+    <script src="/assetmanager/static/js/tools_censor.js"></script>
+    <script src="/assetmanager/static/js/tools_camera.js"></script>
+    <script src="/assetmanager/static/js/tools_resizer.js"></script>
+    <script src="/assetmanager/static/js/prompt_image_finder.js"></script>
+    <script src="/assetmanager/static/js/generate.js"></script>
+    <script src="/assetmanager/static/js/main.js"></script>
+    <script>
+    /* ── 라이브 프리뷰 접기/펼치기 ── */
+    function toggleLivePreview() {
+        const body = document.getElementById('live-preview-body');
+        const container = document.getElementById('live-preview-container');
+        const btn = document.getElementById('live-preview-toggle');
+        if (!body || !btn) return;
+
+        const isCollapsed = body.classList.contains('collapsed');
+        if (isCollapsed) {
+            body.classList.remove('collapsed');
+            container && container.classList.remove('collapsed-mode');
+            btn.textContent = '▼ 접기';
+        } else {
+            body.classList.add('collapsed');
+            container && container.classList.add('collapsed-mode');
+            btn.textContent = '▶ 펼치기';
+        }
+        try { localStorage.setItem('livePreviewCollapsed', isCollapsed ? '0' : '1'); } catch(e) {}
+    }
+
+    /* 새로고침 시 이전 접힘 상태 복원 */
+    document.addEventListener('DOMContentLoaded', function() {
+        const body = document.getElementById('live-preview-body');
+        const container = document.getElementById('live-preview-container');
+        const btn = document.getElementById('live-preview-toggle');
+        if (!body || !btn) return;
+        try {
+            if (localStorage.getItem('livePreviewCollapsed') === '1') {
+                body.classList.add('collapsed');
+                container && container.classList.add('collapsed-mode');
+                btn.textContent = '▶ 펼치기';
+            } else {
+                btn.textContent = '▼ 접기';
+            }
+        } catch(e) {}
+    });
+    </script>
+    <script src="/assetmanager/static/js/gallery.js"></script>
+    <script src="/assetmanager/static/js/korean_autocomplete.js"></script>
+    <script src="/assetmanager/static/js/tag_dictionary.js"></script>
+    <script src="/assetmanager/static/js/prompt_utils.js"></script>
+    <!-- 🆕 의상 세트 일괄 만들기 (의상 1개 + 행동 조각 3~5개 → 조합 대기열 자동 추가, {color} 원클릭 교체) -->
+    <script src="/assetmanager/static/js/outfit_set_wizard.js"></script>
+
+    <script>
+    /* ── 그룹 내 프롬 조각 10개마다 인라인 번호 뱃지 삽입 ── */
+    (function initPromptGroupDivider() {
+        const DIVIDER_CLASS = 'seq-divider';
+
+        const style = document.createElement('style');
+        style.textContent = `
+            .${DIVIDER_CLASS} {
+                display: inline-flex;
+                align-items: center;
+                font-size: 0.72em;
+                font-weight: bold;
+                color: #7ab8f5;
+                background: #1a3a5c;
+                border-radius: 4px;
+                padding: 1px 7px;
+                margin: 0 2px 0 0;
+                white-space: nowrap;
+                pointer-events: none;
+                align-self: center;
+            }
+        `;
+        document.head.appendChild(style);
+
+        function applyDividers(container) {
+            if (!container) return;
+            container.querySelectorAll('.' + DIVIDER_CLASS).forEach(d => d.remove());
+            const items = Array.from(container.children).filter(el =>
+                !el.classList.contains('empty-msg') && el.tagName !== 'P' && !el.classList.contains(DIVIDER_CLASS)
+            );
+            if (items.length === 0) return;
+            items.forEach((el, i) => {
+                if (i % 10 === 0) {
+                    const label = i === 0 ? 1 : i + 1;
+                    const badge = document.createElement('span');
+                    badge.className = DIVIDER_CLASS;
+                    badge.textContent = `${label}`;
+                    container.insertBefore(badge, el);
+                }
+            });
+        }
+
+        function bindItemList(list) {
+            if (list._seqObserving) return;
+            list._seqObserving = true;
+            let debounceTimer = null;
+            const obs = new MutationObserver(() => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => applyDividers(list), 80);
+            });
+            obs.observe(list, { childList: true });
+            applyDividers(list);
+        }
+
+        function setup() {
+            document.querySelectorAll('#item-list').forEach(bindItemList);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setup);
+        } else {
+            setup();
+        }
+    })();
+    </script>
+
+    <!-- ✏️ 그림판 편집 모달 -->
+    <div id="paint-editor-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:10000; flex-direction:column; align-items:center; justify-content:center;">
+        <div style="background:#1e1e1e; border:1px solid #555; border-radius:10px; padding:16px; max-width:95vw; max-height:95vh; display:flex; flex-direction:column; gap:10px; min-width:500px;" onclick="event.stopPropagation()">
+            <!-- 헤더 -->
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; color:#4CAF50;">🎨 이미지 편집 (그림판)</h3>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button onclick="paintEditorUndo()" title="실행 취소 (Ctrl+Z)" style="padding:4px 10px; background:#333; border:1px solid #555; border-radius:4px; color:#fff; cursor:pointer; font-size:0.85em;">↩ 되돌리기</button>
+                    <button onclick="paintEditorReset()" style="padding:4px 10px; background:#622; border:1px solid #844; border-radius:4px; color:#fff; cursor:pointer; font-size:0.85em;">🗑 초기화</button>
+                    <span onclick="closePaintEditor()" style="cursor:pointer; font-size:1.6em; color:#ff5555; line-height:1;">×</span>
+                </div>
+            </div>
+
+            <!-- 툴바 -->
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; background:#111; padding:8px; border-radius:6px; border:1px solid #333;">
+                <!-- 도구 선택 -->
+                <div style="display:flex; gap:4px;">
+                    <button id="pe-tool-brush" onclick="setPaintTool('brush')" style="padding:5px 10px; background:#4CAF50; border:1px solid #6CBF6C; border-radius:4px; color:#fff; cursor:pointer; font-size:0.85em;">🖌 브러시</button>
+                    <button id="pe-tool-eraser" onclick="setPaintTool('eraser')" style="padding:5px 10px; background:#333; border:1px solid #555; border-radius:4px; color:#ccc; cursor:pointer; font-size:0.85em;">🧹 지우개</button>
+                    <button id="pe-tool-eyedropper" onclick="setPaintTool('eyedropper')" style="padding:5px 10px; background:#333; border:1px solid #555; border-radius:4px; color:#ccc; cursor:pointer; font-size:0.85em;">💉 스포이드</button>
+                    <button id="pe-tool-fill" onclick="setPaintTool('fill')" style="padding:5px 10px; background:#333; border:1px solid #555; border-radius:4px; color:#ccc; cursor:pointer; font-size:0.85em;">🪣 채우기</button>
+                </div>
+                <div style="width:1px; height:28px; background:#444;"></div>
+                <!-- 색상 -->
+                <label style="font-size:0.82em; color:#aaa; margin:0;">색상</label>
+                <input type="color" id="pe-color" value="#ff0000" style="width:36px; height:28px; padding:0; border:1px solid #555; border-radius:4px; cursor:pointer; background:none;">
+                <div style="display:flex; gap:3px;">
+                    <div onclick="document.getElementById('pe-color').value='#ff0000'" style="width:20px;height:20px;background:#ff0000;border-radius:3px;cursor:pointer;border:1px solid #555;" title="빨강"></div>
+                    <div onclick="document.getElementById('pe-color').value='#ffffff'" style="width:20px;height:20px;background:#ffffff;border-radius:3px;cursor:pointer;border:1px solid #555;" title="흰색"></div>
+                    <div onclick="document.getElementById('pe-color').value='#000000'" style="width:20px;height:20px;background:#000000;border-radius:3px;cursor:pointer;border:1px solid #555;" title="검정"></div>
+                    <div onclick="document.getElementById('pe-color').value='#ffff00'" style="width:20px;height:20px;background:#ffff00;border-radius:3px;cursor:pointer;border:1px solid #555;" title="노랑"></div>
+                    <div onclick="document.getElementById('pe-color').value='#0088ff'" style="width:20px;height:20px;background:#0088ff;border-radius:3px;cursor:pointer;border:1px solid #555;" title="파랑"></div>
+                    <div onclick="document.getElementById('pe-color').value='#00cc44'" style="width:20px;height:20px;background:#00cc44;border-radius:3px;cursor:pointer;border:1px solid #555;" title="초록"></div>
+                </div>
+                <div style="width:1px; height:28px; background:#444;"></div>
+                <!-- 브러시 크기 -->
+                <label style="font-size:0.82em; color:#aaa; margin:0;">크기</label>
+                <input type="range" id="pe-size" min="1" max="100" value="12" style="width:80px;" oninput="document.getElementById('pe-size-val').textContent=this.value">
+                <span id="pe-size-val" style="font-size:0.82em; color:#ccc; min-width:20px;">12</span>
+                <!-- 불투명도 -->
+                <label style="font-size:0.82em; color:#aaa; margin:0;">불투명도</label>
+                <input type="range" id="pe-opacity" min="1" max="100" value="100" style="width:70px;" oninput="document.getElementById('pe-opacity-val').textContent=this.value+'%'">
+                <span id="pe-opacity-val" style="font-size:0.82em; color:#ccc; min-width:30px;">100%</span>
+            </div>
+
+            <!-- 캔버스 영역 -->
+            <div style="flex:1; overflow:auto; display:flex; align-items:center; justify-content:center; background:#111; border-radius:6px; border:1px solid #333; padding:10px; min-height:300px; max-height:60vh;">
+                <canvas id="paint-editor-canvas" style="image-rendering:pixelated; cursor:crosshair; max-width:100%; max-height:100%;"></canvas>
+            </div>
+
+            <!-- 하단 버튼 -->
+            <div style="display:flex; gap:10px; justify-content:flex-end; align-items:center;">
+                <span id="pe-cursor-pos" style="font-size:0.78em; color:#555; margin-right:auto;"></span>
+                <button onclick="closePaintEditor()" style="padding:8px 20px; background:#333; border:1px solid #555; border-radius:6px; color:#ccc; cursor:pointer;">취소</button>
+                <button onclick="applyPaintEditorResult()" style="padding:8px 24px; background:#4CAF50; border:none; border-radius:6px; color:#fff; font-weight:bold; cursor:pointer; font-size:1em;">✅ 적용</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /* ═══════════════════════════════════════════════════════
+       🎨 그림판 편집기 (Paint Editor)
+       - 인페인트 / 컨트롤넷 / IP어댑터 / Img2Img 공용
+       ═══════════════════════════════════════════════════════ */
+    (function() {
+        let _paintCanvas = null;
+        let _paintCtx = null;
+        let _paintOriginalDataUrl = null;  // 최초 원본 이미지 (초기화용)
+        let _paintUndoStack = [];
+        let _paintTargetCallback = null;   // 적용 시 호출할 함수 (섹션별)
+        let _paintTool = 'brush';
+        let _paintDrawing = false;
+        let _paintLastX = 0, _paintLastY = 0;
+
+        window.openPaintEditor = function(dataUrl, onApply) {
+            _paintCanvas = document.getElementById('paint-editor-canvas');
+            _paintCtx = _paintCanvas.getContext('2d');
+            _paintOriginalDataUrl = dataUrl;
+            _paintTargetCallback = onApply;
+            _paintUndoStack = [];
+
+            const modal = document.getElementById('paint-editor-modal');
+            modal.style.display = 'flex';
+
+            const img = new Image();
+            img.onload = () => {
+                _paintCanvas.width = img.naturalWidth;
+                _paintCanvas.height = img.naturalHeight;
+                _paintCtx.drawImage(img, 0, 0);
+                _pushUndo();
+            };
+            img.src = dataUrl;
+
+            // 기본 도구 초기화
+            setPaintTool('brush');
+        };
+
+        window.closePaintEditor = function() {
+            document.getElementById('paint-editor-modal').style.display = 'none';
+            _paintTargetCallback = null;
+        };
+
+        window.applyPaintEditorResult = function() {
+            if (!_paintCanvas || !_paintTargetCallback) return;
+            const resultDataUrl = _paintCanvas.toDataURL('image/png');
+            _paintTargetCallback(resultDataUrl);
+            closePaintEditor();
+        };
+
+        window.paintEditorUndo = function() {
+            if (_paintUndoStack.length <= 1) return;
+            _paintUndoStack.pop();
+            const prev = _paintUndoStack[_paintUndoStack.length - 1];
+            const img = new Image();
+            img.onload = () => { _paintCtx.clearRect(0, 0, _paintCanvas.width, _paintCanvas.height); _paintCtx.drawImage(img, 0, 0); };
+            img.src = prev;
+        };
+
+        window.paintEditorReset = function() {
+            if (!_paintOriginalDataUrl) return;
+            const img = new Image();
+            img.onload = () => {
+                _paintCtx.clearRect(0, 0, _paintCanvas.width, _paintCanvas.height);
+                _paintCtx.drawImage(img, 0, 0);
+                _paintUndoStack = [];
+                _pushUndo();
+            };
+            img.src = _paintOriginalDataUrl;
+        };
+
+        window.setPaintTool = function(tool) {
+            _paintTool = tool;
+            ['brush','eraser','eyedropper','fill'].forEach(t => {
+                const btn = document.getElementById('pe-tool-' + t);
+                if (!btn) return;
+                if (t === tool) {
+                    btn.style.background = '#4CAF50'; btn.style.borderColor = '#6CBF6C'; btn.style.color = '#fff';
+                } else {
+                    btn.style.background = '#333'; btn.style.borderColor = '#555'; btn.style.color = '#ccc';
+                }
+            });
+            const cursors = { brush:'crosshair', eraser:'cell', eyedropper:'copy', fill:'copy' };
+            if (_paintCanvas) _paintCanvas.style.cursor = cursors[tool] || 'crosshair';
+        };
+
+        function _pushUndo() {
+            _paintUndoStack.push(_paintCanvas.toDataURL('image/png'));
+            if (_paintUndoStack.length > 30) _paintUndoStack.shift();
+        }
+
+        function _getPos(e) {
+            const rect = _paintCanvas.getBoundingClientRect();
+            const scaleX = _paintCanvas.width / rect.width;
+            const scaleY = _paintCanvas.height / rect.height;
+            const touch = e.touches ? e.touches[0] : e;
+            return {
+                x: (touch.clientX - rect.left) * scaleX,
+                y: (touch.clientY - rect.top) * scaleY
+            };
+        }
+
+        function _floodFill(x, y, fillColor) {
+            x = Math.round(x); y = Math.round(y);
+            const imgData = _paintCtx.getImageData(0, 0, _paintCanvas.width, _paintCanvas.height);
+            const data = imgData.data;
+            const w = _paintCanvas.width, h = _paintCanvas.height;
+            const idx = (y * w + x) * 4;
+            const targetR = data[idx], targetG = data[idx+1], targetB = data[idx+2], targetA = data[idx+3];
+            const [fr, fg, fb, fa] = _hexToRgba(fillColor);
+            if (fr===targetR && fg===targetG && fb===targetB && fa===targetA) return;
+            const stack = [[x, y]];
+            const visited = new Uint8Array(w * h);
+            while (stack.length) {
+                const [cx, cy] = stack.pop();
+                if (cx<0||cy<0||cx>=w||cy>=h) continue;
+                const i = cy*w+cx;
+                if (visited[i]) continue;
+                const pi = i*4;
+                if (data[pi]!==targetR || data[pi+1]!==targetG || data[pi+2]!==targetB || data[pi+3]!==targetA) continue;
+                visited[i] = 1;
+                data[pi]=fr; data[pi+1]=fg; data[pi+2]=fb; data[pi+3]=fa;
+                stack.push([cx+1,cy],[cx-1,cy],[cx,cy+1],[cx,cy-1]);
+            }
+            _paintCtx.putImageData(imgData, 0, 0);
+        }
+
+        function _hexToRgba(hex) {
+            const r = parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+            return [r,g,b,255];
+        }
+
+        function _draw(e) {
+            if (!_paintDrawing || !_paintCtx) return;
+            const pos = _getPos(e);
+            const size = parseInt(document.getElementById('pe-size').value);
+            const opacity = parseInt(document.getElementById('pe-opacity').value) / 100;
+            const color = document.getElementById('pe-color').value;
+
+            document.getElementById('pe-cursor-pos').textContent = `X:${Math.round(pos.x)} Y:${Math.round(pos.y)}`;
+
+            if (_paintTool === 'brush') {
+                _paintCtx.globalAlpha = opacity;
+                _paintCtx.globalCompositeOperation = 'source-over';
+                _paintCtx.strokeStyle = color;
+                _paintCtx.lineWidth = size;
+                _paintCtx.lineCap = 'round';
+                _paintCtx.lineJoin = 'round';
+                _paintCtx.beginPath();
+                _paintCtx.moveTo(_paintLastX, _paintLastY);
+                _paintCtx.lineTo(pos.x, pos.y);
+                _paintCtx.stroke();
+            } else if (_paintTool === 'eraser') {
+                _paintCtx.globalAlpha = opacity;
+                _paintCtx.globalCompositeOperation = 'destination-out';
+                _paintCtx.strokeStyle = 'rgba(0,0,0,1)';
+                _paintCtx.lineWidth = size;
+                _paintCtx.lineCap = 'round';
+                _paintCtx.lineJoin = 'round';
+                _paintCtx.beginPath();
+                _paintCtx.moveTo(_paintLastX, _paintLastY);
+                _paintCtx.lineTo(pos.x, pos.y);
+                _paintCtx.stroke();
+            }
+            _paintCtx.globalAlpha = 1;
+            _paintCtx.globalCompositeOperation = 'source-over';
+            _paintLastX = pos.x;
+            _paintLastY = pos.y;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('paint-editor-canvas');
+            if (!canvas) return;
+
+            canvas.addEventListener('mousedown', (e) => {
+                const pos = _getPos(e);
+                _paintLastX = pos.x; _paintLastY = pos.y;
+                if (_paintTool === 'eyedropper') {
+                    const pixel = _paintCtx.getImageData(Math.round(pos.x), Math.round(pos.y), 1, 1).data;
+                    const hex = '#' + [pixel[0],pixel[1],pixel[2]].map(v=>v.toString(16).padStart(2,'0')).join('');
+                    document.getElementById('pe-color').value = hex;
+                    setPaintTool('brush');
+                    return;
+                }
+                if (_paintTool === 'fill') {
+                    _floodFill(pos.x, pos.y, document.getElementById('pe-color').value);
+                    _pushUndo();
+                    return;
+                }
+                _paintDrawing = true;
+                // 점찍기 (클릭만 해도 찍히게)
+                _draw(e);
+            });
+
+            canvas.addEventListener('mousemove', _draw);
+            canvas.addEventListener('mouseup', () => { if (_paintDrawing) { _pushUndo(); _paintDrawing = false; } });
+            canvas.addEventListener('mouseleave', () => { if (_paintDrawing) { _pushUndo(); _paintDrawing = false; } });
+
+            // 터치 지원
+            canvas.addEventListener('touchstart', (e) => { e.preventDefault(); const pos = _getPos(e); _paintLastX=pos.x; _paintLastY=pos.y; _paintDrawing=true; _draw(e); }, { passive: false });
+            canvas.addEventListener('touchmove', (e) => { e.preventDefault(); _draw(e); }, { passive: false });
+            canvas.addEventListener('touchend', () => { if (_paintDrawing) { _pushUndo(); _paintDrawing=false; } });
+
+            // Ctrl+Z 단축키
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z' && document.getElementById('paint-editor-modal').style.display !== 'none') {
+                    e.preventDefault();
+                    paintEditorUndo();
+                }
+            });
+        });
+
+        /* ─── 각 섹션별 그림판 열기 헬퍼 ─── */
+
+        /**
+         * 현재 표시된 미리보기 이미지를 그림판으로 열고,
+         * 편집 완료 시 해당 섹션의 이미지를 교체한다.
+         * targetId: 섹션 식별자 ('img2img' | 'inpaint' | 'ipadapter' | 'controlnet')
+         */
+        window.openPaintEditorFor = function(targetId) {
+            let previewImg, uploadFn, uploadedNameKey, statusElId, previewWrapId;
+
+            if (targetId === 'img2img') {
+                previewImg = document.getElementById('img2img-preview-img');
+                uploadFn = window.uploadImg2ImgImage;
+                uploadedNameKey = '_img2imgUploadedName';
+                statusElId = 'img2img-upload-status';
+                previewWrapId = 'img2img-preview-wrap';
+            } else if (targetId === 'inpaint') {
+                // 인페인트는 bg 이미지 사용
+                previewImg = document.getElementById('inpaint-canvas-bg');
+                uploadFn = window.uploadInpaintImage;
+                uploadedNameKey = '_inpaintUploadedName';
+                statusElId = 'inpaint-upload-status';
+                previewWrapId = null;
+            } else if (targetId === 'ipadapter') {
+                previewImg = document.getElementById('ipadapter-preview-img');
+                uploadFn = window.uploadIPAdapterImage;
+                uploadedNameKey = '_ipadapterUploadedName';
+                statusElId = 'ipadapter-upload-status';
+                previewWrapId = 'ipadapter-preview-wrap';
+            } else if (targetId === 'controlnet') {
+                previewImg = document.getElementById('controlnet-preview-img');
+                uploadFn = window.uploadControlNetImage;
+                uploadedNameKey = '_controlnetUploadedName';
+                statusElId = 'controlnet-upload-status';
+                previewWrapId = 'controlnet-preview-wrap';
+            }
+
+            if (!previewImg || !previewImg.src || previewImg.src === window.location.href) {
+                alert('이미지를 먼저 선택해주세요.');
+                return;
+            }
+
+            // 캔버스로 DataURL 변환 (CORS 우회)
+            const tmpImg = new Image();
+            tmpImg.crossOrigin = 'anonymous';
+            tmpImg.onload = () => {
+                const tmpCanvas = document.createElement('canvas');
+                tmpCanvas.width = tmpImg.naturalWidth || tmpImg.width;
+                tmpCanvas.height = tmpImg.naturalHeight || tmpImg.height;
+                tmpCanvas.getContext('2d').drawImage(tmpImg, 0, 0);
+                const dataUrl = tmpCanvas.toDataURL('image/png');
+
+                openPaintEditor(dataUrl, (resultDataUrl) => {
+                    // 편집된 이미지를 Blob → File로 변환 후 업로드
+                    fetch(resultDataUrl).then(r => r.blob()).then(blob => {
+                        const file = new File([blob], 'edited_image.png', { type: 'image/png' });
+
+                        // 미리보기 업데이트
+                        if (previewImg) previewImg.src = resultDataUrl;
+                        if (previewWrapId) document.getElementById(previewWrapId).style.display = 'block';
+
+                        // 인페인트 특수 처리
+                        if (targetId === 'inpaint') {
+                            // ① fileInput을 비워서 pipeline_inpaint.js의 폴백(files[0] 재업로드)을 차단
+                            //    → _inpaintUploadedName이 null이 되더라도 원본 파일로 덮어쓰지 않음
+                            const fi = document.getElementById('inpaint-image-input');
+                            if (fi) fi.value = '';
+
+                            // ② 마스크 캔버스 크기 동기화 + 마스크 초기화
+                            const maskCanvas = document.getElementById('inpaint-mask-canvas');
+                            const bgImg = document.getElementById('inpaint-canvas-bg');
+                            if (bgImg && maskCanvas) {
+                                bgImg.onload = () => {
+                                    maskCanvas.width = bgImg.naturalWidth;
+                                    maskCanvas.height = bgImg.naturalHeight;
+                                    maskCanvas.getContext('2d').clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+                                    window._inpaintUploadedMaskName = null;
+                                    const maskStatus = document.getElementById('inpaint-mask-status');
+                                    if (maskStatus) maskStatus.textContent = '🎨 이미지 편집됨 — 마스크를 다시 그려주세요';
+                                };
+                                bgImg.src = resultDataUrl;
+                            }
+                        }
+
+                        // 서버 업로드
+                        const statusEl = document.getElementById(statusElId);
+                        if (statusEl) statusEl.textContent = '⏳ 업로드 중...';
+
+                        if (uploadFn) {
+                            uploadFn(file).then(name => {
+                                window[uploadedNameKey] = name;
+                                if (statusEl) statusEl.textContent = '✅ 편집 완료, 업로드됨';
+                                if (typeof savePresetOverride === 'function') savePresetOverride();
+                            }).catch(() => {
+                                if (statusEl) statusEl.textContent = '⚠️ 업로드 실패 (생성 시 재시도됩니다)';
+                            });
+                        }
+                    });
+                });
+            };
+            tmpImg.onerror = () => {
+                // src가 blob URL이면 직접 fetch
+                fetch(previewImg.src).then(r => r.blob()).then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const img2 = new Image();
+                    img2.onload = () => {
+                        const c2 = document.createElement('canvas');
+                        c2.width = img2.naturalWidth; c2.height = img2.naturalHeight;
+                        c2.getContext('2d').drawImage(img2, 0, 0);
+                        openPaintEditor(c2.toDataURL('image/png'), arguments[0]);
+                        URL.revokeObjectURL(url);
+                    };
+                    img2.src = url;
+                }).catch(() => alert('이미지를 불러오지 못했습니다.'));
+            };
+            tmpImg.src = previewImg.src;
+        };
+    })();
+    </script>
+
+    <script>
+    /* denoise 슬라이더 localStorage 복원 */
+    document.addEventListener('DOMContentLoaded', function() {
+        const i2iVal = localStorage.getItem('img2img-denoise');
+        if (i2iVal) {
+            const v = parseFloat(i2iVal);
+            const slider = document.getElementById('img2img-denoise');
+            const num = document.getElementById('img2img-denoise-num');
+            const val = document.getElementById('img2img-denoise-val');
+            if (slider) slider.value = v;
+            if (num) num.value = v.toFixed(2);
+            if (val) val.innerText = v.toFixed(2);
+        }
+        const inpaintVal = localStorage.getItem('inpaint-denoise');
+        if (inpaintVal) {
+            const v = parseFloat(inpaintVal);
+            const slider = document.getElementById('inpaint-denoise');
+            const val = document.getElementById('inpaint-denoise-val');
+            if (slider) slider.value = v;
+            if (val) val.innerText = v.toFixed(2);
+        }
+    });
+    </script>
+
+</body>
+
+</html>

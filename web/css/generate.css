@@ -1,0 +1,152 @@
+/* generate.css — 생성(Generate) 탭 전용 스타일 */
+
+/* ── 스플릿 레이아웃 (좌: 설정, 우: 미리보기/히스토리) ── */
+#tab-generate.active {
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
+.gen-left {
+    width: 80%;
+    padding: 20px;
+    overflow-y: auto;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+.gen-resizer {
+    width: 6px;
+    background: #333;
+    cursor: col-resize;
+    transition: background 0.2s;
+    z-index: 10;
+    height: 100%;
+}
+
+.gen-resizer:hover,
+.gen-resizer.resizing {
+    background: #4CAF50;
+}
+
+.gen-right {
+    flex: 2;
+    min-width: 400px;
+    background: #1a1a1a;
+    border-radius: 8px;
+    box-shadow: inset 2px 0 5px rgba(0, 0, 0, 0.5);
+}
+
+/* ── 단일/배치 모드 스위치 ── */
+.mode-switch {
+    display: flex;
+    background: #1e1e1e;
+    border-radius: 8px;
+    border: 1px solid #444;
+    overflow: hidden;
+}
+
+.mode-switch input[type="radio"] {
+    display: none;
+}
+
+.mode-switch label {
+    padding: 8px 20px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: bold;
+    transition: 0.2s;
+    color: #888;
+}
+
+.mode-switch input[type="radio"]:checked+label {
+    background: #4CAF50;
+    color: white;
+}
+
+/* ── 로라 아이템 ── */
+.lora-item {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: #1e1e1e;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    border: 1px solid #444;
+}
+
+/* ── 히스토리 스택 (우측 패널) ── */
+.history-item {
+    background: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 15px;
+    transition: transform 0.2s;
+}
+
+.history-item:hover {
+    border-color: #4CAF50;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.history-item img {
+    width: 100%;
+    border-radius: 4px;
+    cursor: pointer;
+    display: block;
+}
+
+.history-item .file-name {
+    font-size: 0.85em;
+    font-weight: bold;
+    margin-top: 8px;
+    color: #4CAF50;
+    word-break: break-all;
+}
+
+.history-item .file-path {
+    font-size: 0.75em;
+    color: #aaa;
+    margin-top: 3px;
+    word-break: break-all;
+}
+
+/* ── 실시간 뷰어 접기/펼치기 ── */
+#live-preview-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.2s ease;
+}
+
+#live-preview-body.collapsed {
+    max-height: 0 !important;
+    opacity: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+#live-preview-container.collapsed-mode {
+    flex: 0 0 auto !important;
+}
+
+.collapse-toggle-btn {
+    background: none;
+    border: 1px solid #555;
+    color: #aaa;
+    cursor: pointer;
+    font-size: 0.8em;
+    padding: 2px 8px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.collapse-toggle-btn:hover {
+    border-color: #FF9800;
+    color: #FF9800;
+}

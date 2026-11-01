@@ -1,0 +1,1109 @@
+{
+  "87": {
+    "inputs": {
+      "ckpt_name": "iIllustrious\\waiIllustriousSDXL_v160.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "[Main] ckpt loader"
+    }
+  },
+  "88": {
+    "inputs": {
+      "value": 5
+    },
+    "class_type": "PrimitiveFloat",
+    "_meta": {
+      "title": "[Main] CFG"
+    }
+  },
+  "89": {
+    "inputs": {
+      "stop_at_clip_layer": -2,
+      "clip": [
+        "87",
+        1
+      ]
+    },
+    "class_type": "CLIPSetLastLayer",
+    "_meta": {
+      "title": "[Main] Clip"
+    }
+  },
+  "90": {
+    "inputs": {
+      "sampling": "eps",
+      "zsnr": false,
+      "model": [
+        "87",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingDiscrete",
+    "_meta": {
+      "title": "[Main] Sampling"
+    }
+  },
+  "91": {
+    "inputs": {
+      "value": 28
+    },
+    "class_type": "INTConstant",
+    "_meta": {
+      "title": "[Main] Step"
+    }
+  },
+  "92": {
+    "inputs": {
+      "sampler_name": "euler_ancestral",
+      "scheduler": "normal"
+    },
+    "class_type": "Sampler Scheduler Settings (JPS)",
+    "_meta": {
+      "title": "[Main] Sampler, Scheduler"
+    }
+  },
+  "93": {
+    "inputs": {
+      "PowerLoraLoaderHeaderWidget": {
+        "type": "PowerLoraLoaderHeaderWidget"
+      },
+      "lora_1": {
+        "on": false,
+        "lora": "None",
+        "strength": 1
+      },
+      "➕ Add Lora": "",
+      "model": [
+        "90",
+        0
+      ],
+      "clip": [
+        "89",
+        0
+      ]
+    },
+    "class_type": "Power Lora Loader (rgthree)",
+    "_meta": {
+      "title": "[Main] Lora Loader"
+    }
+  },
+  "94": {
+    "inputs": {
+      "dimensions": "1024 x 1024  (square)",
+      "clip_scale": 1,
+      "batch_size": 1
+    },
+    "class_type": "SDXL Empty Latent Image (rgthree)",
+    "_meta": {
+      "title": "[Main] Latent Image"
+    }
+  },
+  "95": {
+    "inputs": {
+      "pos": "1 girl, upper body",
+      "neg": "shota, boy, man, 1man, 1boy, male, multiple boys, mutiple men, blood, nude, nsfw, (crowd, others, people), pov hand, pov hands, (bad quality:1.2),(worst quality:1.2),(bad anatomy:1.2), (bad hands:1.2), six fingers, watermark, text, 2girls, multiple views, multiple girls, ai-generated, worst quality, off-topic, jpeg artifacts, scan artifacts, signature, artist name, username, copyright name, logo, speech bubble, narration, lineart, production art, retro artstyle, off-topic, worst quality, oldest, body horror, horror \\(theme\\), eldritch abomination, fat, ugly, surreal, abstract, dissolving, giant monster, bara, yaoi, 2koma, taker pov, pov, mask, sweat, mechanical hands, chibi inset, doodle inset, blue streaks, cat ears, (energy wings:1.5), girls' frontline, halo, breast focus"
+    },
+    "class_type": "Text Prompt Combo (JPS)",
+    "_meta": {
+      "title": "[Main] Text Prompt"
+    }
+  },
+  "96": {
+    "inputs": {
+      "seed": 1042337254286886,
+      "steps": [
+        "91",
+        0
+      ],
+      "cfg": [
+        "88",
+        0
+      ],
+      "sampler_name": [
+        "92",
+        0
+      ],
+      "scheduler": [
+        "92",
+        1
+      ],
+      "denoise": 1,
+      "model": [
+        "93",
+        0
+      ],
+      "positive": [
+        "101",
+        0
+      ],
+      "negative": [
+        "102",
+        0
+      ],
+      "latent_image": [
+        "94",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "[Main] KSampler"
+    }
+  },
+  "97": {
+    "inputs": {
+      "filename_prefix": "2026-02-22/145232_%KSamplerBase.seed%",
+      "images": [
+        "99",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "[Main] Image Save"
+    }
+  },
+  "98": {
+    "inputs": {
+      "images": [
+        "99",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "[Main] Image Preview"
+    }
+  },
+  "99": {
+    "inputs": {
+      "samples": [
+        "96",
+        0
+      ],
+      "vae": [
+        "87",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "[Main] VAE decode"
+    }
+  },
+  "101": {
+    "inputs": {
+      "clip": [
+        "93",
+        1
+      ],
+      "text": [
+        "95",
+        0
+      ]
+    },
+    "class_type": "Text to Conditioning",
+    "_meta": {
+      "title": "[Main] T2C(Positive)"
+    }
+  },
+  "102": {
+    "inputs": {
+      "clip": [
+        "93",
+        1
+      ],
+      "text": [
+        "95",
+        1
+      ]
+    },
+    "class_type": "Text to Conditioning",
+    "_meta": {
+      "title": "[Main] T2C(Negative)"
+    }
+  },
+  "104": {
+    "inputs": {
+      "model_name": "ESRGAN\\2x-AnimeSharpV4_Fast_RCAN_PU.safetensors"
+    },
+    "class_type": "UpscaleModelLoader",
+    "_meta": {
+      "title": "[Upscaler] Model Loader"
+    }
+  },
+  "105": {
+    "inputs": {
+      "upscale_model": [
+        "104",
+        0
+      ],
+      "image": [
+        "99",
+        0
+      ]
+    },
+    "class_type": "ImageUpscaleWithModel",
+    "_meta": {
+      "title": "[Upscaler] Image Upscale"
+    }
+  },
+  "106": {
+    "inputs": {
+      "samples": [
+        "109",
+        0
+      ],
+      "vae": [
+        "87",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "[Upscaler] VAE Decode"
+    }
+  },
+  "107": {
+    "inputs": {
+      "upscale_method": "lanczos",
+      "scale_by": 0.75,
+      "image": [
+        "99",
+        0
+      ]
+    },
+    "class_type": "ImageScaleBy",
+    "_meta": {
+      "title": "[Upscaler] Ratio"
+    }
+  },
+  "108": {
+    "inputs": {
+      "pixels": [
+        "105",
+        0
+      ],
+      "vae": [
+        "87",
+        2
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "[Upscaler] VAE Encode"
+    }
+  },
+  "109": {
+    "inputs": {
+      "seed": 401367361360765,
+      "steps": 10,
+      "cfg": [
+        "88",
+        0
+      ],
+      "sampler_name": [
+        "92",
+        0
+      ],
+      "scheduler": [
+        "92",
+        1
+      ],
+      "denoise": 0.4,
+      "model": [
+        "93",
+        0
+      ],
+      "positive": [
+        "101",
+        0
+      ],
+      "negative": [
+        "102",
+        0
+      ],
+      "latent_image": [
+        "108",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "[Upscaler] KSampler"
+    }
+  },
+  "110": {
+    "inputs": {
+      "filename_prefix": "2026-02-22/145232_%KSamplerBase.seed%",
+      "images": [
+        "106",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "[Upscaler] Image Save"
+    }
+  },
+  "111": {
+    "inputs": {
+      "images": [
+        "106",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "[Upscaler] Image Preview"
+    }
+  },
+  "112": {
+    "inputs": {
+      "model_name": "bbox/face_yolov8m.pt"
+    },
+    "class_type": "UltralyticsDetectorProvider",
+    "_meta": {
+      "title": "[Detailer] Face Detailer Model(BBOX)"
+    }
+  },
+  "113": {
+    "inputs": {
+      "model_name": "sam_vit_b_01ec64.pth",
+      "device_mode": "AUTO"
+    },
+    "class_type": "SAMLoader",
+    "_meta": {
+      "title": "[Detailer] Face Detailer Model(SAML)"
+    }
+  },
+  "115": {
+    "inputs": {
+      "wildcard": "",
+      "Select to add LoRA": "Select the LoRA to add to the text",
+      "Select to add Wildcard": "Select the Wildcard to add to the text",
+      "model": [
+        "93",
+        0
+      ],
+      "clip": [
+        "93",
+        1
+      ],
+      "vae": [
+        "87",
+        2
+      ],
+      "positive": [
+        "101",
+        0
+      ],
+      "negative": [
+        "102",
+        0
+      ],
+      "bbox_detector": [
+        "112",
+        0
+      ],
+      "sam_model_opt": [
+        "113",
+        0
+      ],
+      "segm_detector_opt": [
+        "112",
+        1
+      ]
+    },
+    "class_type": "ToDetailerPipe",
+    "_meta": {
+      "title": "[Detailer] Face Detailer ToDetailerPipe"
+    }
+  },
+  "116": {
+    "inputs": {
+      "guide_size": 512,
+      "guide_size_for": true,
+      "max_size": 1024,
+      "seed": 886758380203000,
+      "steps": 10,
+      "cfg": [
+        "88",
+        0
+      ],
+      "sampler_name": [
+        "92",
+        0
+      ],
+      "scheduler": "simple",
+      "denoise": 0.5,
+      "feather": 5,
+      "noise_mask": true,
+      "force_inpaint": true,
+      "bbox_threshold": 0.5,
+      "bbox_dilation": 10,
+      "bbox_crop_factor": 3,
+      "sam_detection_hint": "center-1",
+      "sam_dilation": 0,
+      "sam_threshold": 0.93,
+      "sam_bbox_expansion": 0,
+      "sam_mask_hint_threshold": 0.7,
+      "sam_mask_hint_use_negative": "False",
+      "drop_size": 10,
+      "refiner_ratio": 0.2,
+      "cycle": 1,
+      "inpaint_model": false,
+      "noise_mask_feather": 20,
+      "tiled_encode": false,
+      "tiled_decode": false,
+      "image": [
+        "106",
+        0
+      ],
+      "detailer_pipe": [
+        "115",
+        0
+      ]
+    },
+    "class_type": "FaceDetailerPipe",
+    "_meta": {
+      "title": "[Detailer] Face Detailer"
+    }
+  },
+  "119": {
+    "inputs": {
+      "images": [
+        "116",
+        2
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "[Detailer] Face Detailer Image Preview"
+    }
+  },
+  "121": {
+    "inputs": {
+      "filename_prefix": "2026-02-22/145232_%KSamplerBase.seed%",
+      "images": [
+        "116",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "[Detailer] Face Detailer Image Save"
+    }
+  },
+  "124": {
+    "inputs": {
+      "scheduler": [
+        "92",
+        1
+      ],
+      "extra_scheduler": "None"
+    },
+    "class_type": "ImpactSchedulerAdapter",
+    "_meta": {
+      "title": "[Detailer] Scheduler Adapter"
+    }
+  },
+  "125": {
+    "inputs": {
+      "model_name": "segm/PitEyeDetailer-v2-seg.pt"
+    },
+    "class_type": "UltralyticsDetectorProvider",
+    "_meta": {
+      "title": "[Detailer] Eye Detailer Model(BBOX)"
+    }
+  },
+  "126": {
+    "inputs": {
+      "model_name": "sam_vit_b_01ec64.pth",
+      "device_mode": "AUTO"
+    },
+    "class_type": "SAMLoader",
+    "_meta": {
+      "title": "[Detailer] Eye Detailer Model(SAML)"
+    }
+  },
+  "127": {
+    "inputs": {
+      "images": [
+        "129",
+        2
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "[Detailer] Eye Detailer Image Preview"
+    }
+  },
+  "128": {
+    "inputs": {
+      "wildcard": "",
+      "Select to add LoRA": "Select the LoRA to add to the text",
+      "Select to add Wildcard": "Select the Wildcard to add to the text",
+      "model": [
+        "93",
+        0
+      ],
+      "clip": [
+        "93",
+        1
+      ],
+      "vae": [
+        "87",
+        2
+      ],
+      "positive": [
+        "101",
+        0
+      ],
+      "negative": [
+        "102",
+        0
+      ],
+      "bbox_detector": [
+        "125",
+        0
+      ],
+      "sam_model_opt": [
+        "126",
+        0
+      ],
+      "segm_detector_opt": [
+        "125",
+        1
+      ]
+    },
+    "class_type": "ToDetailerPipe",
+    "_meta": {
+      "title": "[Detailer] Eye Detailer ToDetailerPipe"
+    }
+  },
+  "129": {
+    "inputs": {
+      "guide_size": 512,
+      "guide_size_for": true,
+      "max_size": 1024,
+      "seed": 181766016753927,
+      "steps": 10,
+      "cfg": [
+        "88",
+        0
+      ],
+      "sampler_name": [
+        "92",
+        0
+      ],
+      "scheduler": "simple",
+      "denoise": 0.5,
+      "feather": 5,
+      "noise_mask": true,
+      "force_inpaint": true,
+      "bbox_threshold": 0.5,
+      "bbox_dilation": 10,
+      "bbox_crop_factor": 3,
+      "sam_detection_hint": "center-1",
+      "sam_dilation": 0,
+      "sam_threshold": 0.93,
+      "sam_bbox_expansion": 0,
+      "sam_mask_hint_threshold": 0.7,
+      "sam_mask_hint_use_negative": "False",
+      "drop_size": 10,
+      "refiner_ratio": 0.2,
+      "cycle": 1,
+      "inpaint_model": false,
+      "noise_mask_feather": 20,
+      "tiled_encode": false,
+      "tiled_decode": false,
+      "image": [
+        "116",
+        0
+      ],
+      "detailer_pipe": [
+        "128",
+        0
+      ]
+    },
+    "class_type": "FaceDetailerPipe",
+    "_meta": {
+      "title": "[Detailer] Eye Detailer"
+    }
+  },
+  "130": {
+    "inputs": {
+      "filename_prefix": "2026-02-22/145232_%KSamplerBase.seed%",
+      "images": [
+        "129",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "[Detailer] Eye Detailer Image Save"
+    }
+  },
+  "131": {
+    "inputs": {
+      "model_name": "bbox/face_yolov8m.pt"
+    },
+    "class_type": "UltralyticsDetectorProvider",
+    "_meta": {
+      "title": "[Detailer] Mouth Detailer Model(BBOX)"
+    }
+  },
+  "132": {
+    "inputs": {
+      "model_name": "sam_vit_b_01ec64.pth",
+      "device_mode": "AUTO"
+    },
+    "class_type": "SAMLoader",
+    "_meta": {
+      "title": "[Detailer] Mouth Detailer Model(SAML)"
+    }
+  },
+  "133": {
+    "inputs": {
+      "images": [
+        "135",
+        2
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "[Detailer] Mouth Detailer Image Preview"
+    }
+  },
+  "134": {
+    "inputs": {
+      "wildcard": "",
+      "Select to add LoRA": "Select the LoRA to add to the text",
+      "Select to add Wildcard": "Select the Wildcard to add to the text",
+      "model": [
+        "93",
+        0
+      ],
+      "clip": [
+        "93",
+        1
+      ],
+      "vae": [
+        "87",
+        2
+      ],
+      "positive": [
+        "101",
+        0
+      ],
+      "negative": [
+        "102",
+        0
+      ],
+      "bbox_detector": [
+        "131",
+        0
+      ],
+      "sam_model_opt": [
+        "132",
+        0
+      ],
+      "segm_detector_opt": [
+        "131",
+        1
+      ]
+    },
+    "class_type": "ToDetailerPipe",
+    "_meta": {
+      "title": "[Detailer] Mouth Detailer ToDetailerPipe"
+    }
+  },
+  "135": {
+    "inputs": {
+      "guide_size": 512,
+      "guide_size_for": true,
+      "max_size": 1024,
+      "seed": 123456789012345,
+      "steps": 10,
+      "cfg": [
+        "88",
+        0
+      ],
+      "sampler_name": [
+        "92",
+        0
+      ],
+      "scheduler": "simple",
+      "denoise": 0.5,
+      "feather": 5,
+      "noise_mask": true,
+      "force_inpaint": true,
+      "bbox_threshold": 0.5,
+      "bbox_dilation": 10,
+      "bbox_crop_factor": 3,
+      "sam_detection_hint": "center-1",
+      "sam_dilation": 0,
+      "sam_threshold": 0.93,
+      "sam_bbox_expansion": 0,
+      "sam_mask_hint_threshold": 0.7,
+      "sam_mask_hint_use_negative": "False",
+      "drop_size": 10,
+      "refiner_ratio": 0.2,
+      "cycle": 1,
+      "inpaint_model": false,
+      "noise_mask_feather": 20,
+      "tiled_encode": false,
+      "tiled_decode": false,
+      "image": [
+        "129",
+        0
+      ],
+      "detailer_pipe": [
+        "134",
+        0
+      ]
+    },
+    "class_type": "FaceDetailerPipe",
+    "_meta": {
+      "title": "[Detailer] Mouth Detailer"
+    }
+  },
+  "136": {
+    "inputs": {
+      "filename_prefix": "2026-02-22/145232_%KSamplerBase.seed%",
+      "images": [
+        "135",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "[Detailer] Mouth Detailer Image Save"
+    }
+  },
+  "137": {
+    "inputs": {
+      "model_name": "bbox/hand_yolov8s.pt"
+    },
+    "class_type": "UltralyticsDetectorProvider",
+    "_meta": {
+      "title": "[Detailer] Hand Detailer Model(BBOX)"
+    }
+  },
+  "138": {
+    "inputs": {
+      "model_name": "sam_vit_b_01ec64.pth",
+      "device_mode": "AUTO"
+    },
+    "class_type": "SAMLoader",
+    "_meta": {
+      "title": "[Detailer] Hand Detailer Model(SAML)"
+    }
+  },
+  "139": {
+    "inputs": {
+      "images": [
+        "141",
+        2
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "[Detailer] Hand Detailer Image Preview"
+    }
+  },
+  "140": {
+    "inputs": {
+      "wildcard": "",
+      "Select to add LoRA": "Select the LoRA to add to the text",
+      "Select to add Wildcard": "Select the Wildcard to add to the text",
+      "model": [
+        "93",
+        0
+      ],
+      "clip": [
+        "93",
+        1
+      ],
+      "vae": [
+        "87",
+        2
+      ],
+      "positive": [
+        "101",
+        0
+      ],
+      "negative": [
+        "102",
+        0
+      ],
+      "bbox_detector": [
+        "137",
+        0
+      ],
+      "sam_model_opt": [
+        "138",
+        0
+      ],
+      "segm_detector_opt": [
+        "137",
+        1
+      ]
+    },
+    "class_type": "ToDetailerPipe",
+    "_meta": {
+      "title": "[Detailer] Hand Detailer ToDetailerPipe"
+    }
+  },
+  "141": {
+    "inputs": {
+      "guide_size": 512,
+      "guide_size_for": true,
+      "max_size": 1024,
+      "seed": 987654321098765,
+      "steps": 10,
+      "cfg": [
+        "88",
+        0
+      ],
+      "sampler_name": [
+        "92",
+        0
+      ],
+      "scheduler": "simple",
+      "denoise": 0.5,
+      "feather": 5,
+      "noise_mask": true,
+      "force_inpaint": true,
+      "bbox_threshold": 0.5,
+      "bbox_dilation": 10,
+      "bbox_crop_factor": 3,
+      "sam_detection_hint": "center-1",
+      "sam_dilation": 0,
+      "sam_threshold": 0.93,
+      "sam_bbox_expansion": 0,
+      "sam_mask_hint_threshold": 0.7,
+      "sam_mask_hint_use_negative": "False",
+      "drop_size": 10,
+      "refiner_ratio": 0.2,
+      "cycle": 1,
+      "inpaint_model": false,
+      "noise_mask_feather": 20,
+      "tiled_encode": false,
+      "tiled_decode": false,
+      "image": [
+        "135",
+        0
+      ],
+      "detailer_pipe": [
+        "140",
+        0
+      ]
+    },
+    "class_type": "FaceDetailerPipe",
+    "_meta": {
+      "title": "[Detailer] Hand Detailer"
+    }
+  },
+  "142": {
+    "inputs": {
+      "filename_prefix": "2026-02-22/145232_%KSamplerBase.seed%",
+      "images": [
+        "141",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "[Detailer] Hand Detailer Image Save"
+    }
+  },
+  "800": {
+    "inputs": {
+      "model_name": "segm/ntd11_anime_nsfw_segm_v5-variant1.pt"
+    },
+    "class_type": "UltralyticsDetectorProvider",
+    "_meta": {
+      "title": "[Censor] NSFW Segm Detector"
+    }
+  },
+  "801": {
+    "inputs": {
+      "threshold": 0.4,
+      "dilation": 0,
+      "crop_factor": 3,
+      "drop_size": 1,
+      "labels": "all",
+      "segm_detector": [
+        "800",
+        1
+      ],
+      "image": [
+        "141",
+        0
+      ]
+    },
+    "class_type": "SegmDetectorSEGS",
+    "_meta": {
+      "title": "[Censor] SEGS Extractor"
+    }
+  },
+  "802": {
+    "inputs": {
+      "segs": [
+        "801",
+        0
+      ]
+    },
+    "class_type": "SegsToCombinedMask",
+    "_meta": {
+      "title": "[Censor] Combined Mask"
+    }
+  },
+  "803": {
+    "inputs": {
+      "upscale_method": "nearest-exact",
+      "scale_by": 0.07,
+      "image": [
+        "141",
+        0
+      ]
+    },
+    "class_type": "ImageScaleBy",
+    "_meta": {
+      "title": "[Censor] Mosaic Downscale"
+    }
+  },
+  "804": {
+    "inputs": {
+      "upscale_method": "nearest-exact",
+      "scale_by": 8,
+      "image": [
+        "803",
+        0
+      ]
+    },
+    "class_type": "ImageScaleBy",
+    "_meta": {
+      "title": "[Censor] Mosaic Upscale"
+    }
+  },
+  "805": {
+    "inputs": {
+      "x": 0,
+      "y": 0,
+      "resize_source": true,
+      "destination": [
+        "141",
+        0
+      ],
+      "source": [
+        "804",
+        0
+      ],
+      "mask": [
+        "802",
+        0
+      ]
+    },
+    "class_type": "ImageCompositeMasked",
+    "_meta": {
+      "title": "[Censor] Mosaic Composite"
+    }
+  },
+  "806": {
+    "inputs": {
+      "width": 512,
+      "height": 512,
+      "batch_size": 1,
+      "color": 16777215
+    },
+    "class_type": "EmptyImage",
+    "_meta": {
+      "title": "[Censor] White Canvas"
+    }
+  },
+  "807": {
+    "inputs": {
+      "kernel_size": 15,
+      "sigma": 7.5,
+      "mask": [
+        "802",
+        0
+      ]
+    },
+    "class_type": "ImpactGaussianBlurMask",
+    "_meta": {
+      "title": "[Censor] White Edge Blur"
+    }
+  },
+  "808": {
+    "inputs": {
+      "x": 0,
+      "y": 0,
+      "resize_source": true,
+      "destination": [
+        "141",
+        0
+      ],
+      "source": [
+        "806",
+        0
+      ],
+      "mask": [
+        "807",
+        0
+      ]
+    },
+    "class_type": "ImageCompositeMasked",
+    "_meta": {
+      "title": "[Censor] White Mask Composite"
+    }
+  },
+  "809": {
+    "inputs": {
+      "filename_prefix": "2026-02-22/censor",
+      "images": [
+        "805",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "[Censor] Image Save"
+    }
+  },
+  "200": {
+    "inputs": {
+      "ckpt_name": "iIllustrious\\waiIllustriousSDXL_v160.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "[ALT] ckpt loader"
+    }
+  },
+  "201": {
+    "inputs": {
+      "value": 5
+    },
+    "class_type": "PrimitiveFloat",
+    "_meta": {
+      "title": "[ALT] CFG"
+    }
+  },
+  "202": {
+    "inputs": {
+      "stop_at_clip_layer": -2,
+      "clip": [
+        "200",
+        1
+      ]
+    },
+    "class_type": "CLIPSetLastLayer",
+    "_meta": {
+      "title": "[ALT] Clip"
+    }
+  }
+}

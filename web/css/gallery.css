@@ -1,0 +1,213 @@
+/* gallery.css — 이미지 갤러리 (폴더 트리, 그리드, 선택) */
+
+.gallery-layout {
+    display: flex;
+    gap: 20px;
+    height: 100%;
+    /* 부모 content 영역 기준 */
+    box-sizing: border-box;
+    padding-bottom: 20px;
+}
+
+.gallery-left {
+    flex: 0 0 300px;
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.gallery-right {
+    flex: 1;
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    /* 드래그 선택 박스의 기준 위치 */
+}
+
+/* ── 좌측 폴더 목록 ── */
+.gallery-folder-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid #333;
+    cursor: pointer;
+    transition: background 0.2s;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+}
+
+.gallery-folder-item:hover {
+    background: #2a2a2a;
+}
+
+.gallery-folder-item.active {
+    background: rgba(76, 175, 80, 0.2);
+    border-left: 4px solid #4CAF50;
+    padding-left: 11px;
+}
+
+.gallery-folder-count {
+    font-size: 0.8em;
+    color: #888;
+    background: #111;
+    padding: 2px 6px;
+    border-radius: 10px;
+}
+
+/* ── 폴더 트리 (아코디언) ── */
+.folder-tree {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.tree-node {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 4px;
+    user-select: none;
+    transition: background 0.2s;
+    margin-bottom: 2px;
+}
+
+.tree-node:hover {
+    background: #2a2a2a;
+}
+
+.tree-node.active {
+    background: rgba(76, 175, 80, 0.2);
+    border-left: 3px solid #4CAF50;
+    padding-left: 7px;
+}
+
+.tree-children {
+    padding-left: 14px;
+    margin-left: 10px;
+    border-left: 1px dashed #444;
+    display: none;
+}
+
+.tree-children.open {
+    display: block;
+}
+
+.tree-toggle {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+    color: #888;
+    font-size: 0.7em;
+    margin-right: 5px;
+    border-radius: 4px;
+}
+
+.tree-toggle:hover {
+    background: #444;
+    color: #fff;
+}
+
+.tree-toggle.open {
+    transform: rotate(90deg);
+    color: #ccc;
+}
+
+.tree-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.95em;
+}
+
+/* ── 우측 이미지 그리드 ── */
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 15px;
+    padding: 20px;
+    overflow-y: auto;
+    align-content: start;
+    user-select: none;
+    /* 드래그 선택 시 텍스트 선택 방지용 */
+}
+
+.gallery-item {
+    position: relative;
+    border-radius: 6px;
+    border: 2px solid transparent;
+    overflow: hidden;
+    background: #111;
+    cursor: pointer;
+    transition: transform 0.1s, border-color 0.1s;
+    aspect-ratio: 1 / 1;
+    /* 정사각형 비율 유지 */
+}
+
+.gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+    /* 이벤트 투과 (우클릭 방지) */
+}
+
+.gallery-item.selected {
+    border-color: #4CAF50;
+    transform: scale(0.97);
+}
+
+.gallery-item.selected::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(76, 175, 80, 0.2);
+    pointer-events: none;
+}
+
+/* ── 선택 체크박스 (hover/selected 시 표시) ── */
+.gallery-item-checkbox {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 20px;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid #fff;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    cursor: pointer;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gallery-item:hover .gallery-item-checkbox,
+.gallery-item.selected .gallery-item-checkbox {
+    opacity: 1;
+}
+
+.gallery-item.selected .gallery-item-checkbox {
+    background: #4CAF50;
+    border-color: #4CAF50;
+}
+
+.gallery-item.selected .gallery-item-checkbox::after {
+    content: "✓";
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+}
